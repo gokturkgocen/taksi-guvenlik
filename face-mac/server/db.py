@@ -3,9 +3,18 @@ from __future__ import annotations
 
 import os
 import pickle
+from dataclasses import dataclass
 from typing import Tuple
 
 import numpy as np
+
+
+@dataclass
+class Person:
+    """Compatibility shim for v1 embeddings.pkl files."""
+
+    name: str
+    embedding: np.ndarray
 
 
 class FaceDB:
@@ -19,7 +28,23 @@ class FaceDB:
         self.entries: list[tuple[str, np.ndarray]] = []
         if os.path.exists(path):
             with open(path, "rb") as f:
-                self.entries = pickle.load(f)
+                self.entries = self._coerce_entries(pickle.load(f))
+
+    @staticmethod
+    def _coerce_entries(raw_entries) -> list[tuple[str, np.ndarray]]:
+        entries: list[tuple[str, np.ndarray]] = []
+        for item in raw_entries:
+            if isinstance(item, tuple) and len(item) == 2:
+                name, embedding = item
+            elif hasattr(item, "name") and hasattr(item, "embedding"):
+                name, embedding = item.name, item.embedding
+            else:
+                raise ValueError(f"unsupported db entry type: {type(item)!r}")
+
+            emb = np.asarray(embedding, dtype=np.float32)
+            emb = emb / max(np.linalg.norm(emb), 1e-9)
+            entries.append((str(name), emb))
+        return entries
 
     def add(self, name: str, embedding: np.ndarray) -> None:
         emb = embedding.astype(np.float32)
