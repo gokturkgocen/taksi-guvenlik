@@ -1,0 +1,67 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# venvs (large, machine-specific)
+venv/
+.venv/
+env/
+face-mac/venv/
+
+# Runtime logs
+events.jsonl
+*.log
+
+# Build artifacts
+build/
+dist/
+*.zip
+
+# Xcode
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+iphone-app/build/
+
+# PlatformIO / ESP32
+.pio/
+.pioenvs/
+.piolibdeps/
+esp32/.pio/
+
+# STM32 / CubeIDE build outputs
+Debug/
+Release/
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+
+# Server runtime data
+face-mac/server/venv/
+face-mac/server/data/
+face-mac/server/embeddings.pkl
+face-mac/server/deployment.zip
+face-mac/server/taxi-server.tar.gz
+
+# AWS / secrets
+.env
+.env.local
+*.pem
+*.key
+aws_credentials
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~

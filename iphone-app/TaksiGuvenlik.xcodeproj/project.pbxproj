@@ -1,0 +1,386 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2D013FD1FAE9E4F56C20F3A0 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AAFC46C9776BEFCD3551305 /* LoginView.swift */; };
+		398D213C06B78085DA96EEB7 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09FFCE3F3448EFECA263F95C /* HomeView.swift */; };
+		69C97DA95B9EA9A9D945F2A5 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F269BABA3145EF0B39B6ED2C /* BLEManager.swift */; };
+		71F05A07AB60641F2C0B32CD /* BottomNavView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 520E2E5840FA64A568B8AC4F /* BottomNavView.swift */; };
+		794260FC5C07151FFD8729D6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F6C00DA934BE6FF364D91A /* ContentView.swift */; };
+		831DED201E8912CD3EF79CA8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1623BE218574F1984F208141 /* Assets.xcassets */; };
+		8837D7CF8AA3CA6874DA0C30 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B1E2C989135CAC3383A0E7F /* SampleData.swift */; };
+		8A4F6DA3A580E9A3F29974F2 /* TripLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD96AF355352EC7C3D20B2A4 /* TripLog.swift */; };
+		8D8D8C07480D5D7BA7962697 /* TaksiGuvenlikApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 808F9B841A6ECCA97A2106B5 /* TaksiGuvenlikApp.swift */; };
+		A27D8A1CB0FF31FEF18F4F29 /* TripCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFE38A6C73BC1807F8922A8A /* TripCard.swift */; };
+		C4ED57E510FE30B8BB0A6CC8 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D207861E46C5C37014F5872 /* CameraView.swift */; };
+		C9606DC28EB92DFD4147261C /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B936FFB10059A3CA250702 /* AppColors.swift */; };
+		DFEABAE2E5F9890F92D50761 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB111FD28BF2169C6E6F7E7 /* AppState.swift */; };
+		E18AEAC855797E8D7E70A2B2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0F50E731E7DC9C1C95152C /* SettingsView.swift */; };
+		E375E53BC5366D3A7A5471CC /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17DCB1F33E3C78779FA5265 /* LogsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		00F6C00DA934BE6FF364D91A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		09FFCE3F3448EFECA263F95C /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		1623BE218574F1984F208141 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		18B936FFB10059A3CA250702 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
+		1AABED576F64DF820935F3EA /* TaksiGuvenlik.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaksiGuvenlik.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4B1E2C989135CAC3383A0E7F /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+		4D207861E46C5C37014F5872 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
+		520E2E5840FA64A568B8AC4F /* BottomNavView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomNavView.swift; sourceTree = "<group>"; };
+		5AAFC46C9776BEFCD3551305 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		808F9B841A6ECCA97A2106B5 /* TaksiGuvenlikApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaksiGuvenlikApp.swift; sourceTree = "<group>"; };
+		ACB111FD28BF2169C6E6F7E7 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		BFE38A6C73BC1807F8922A8A /* TripCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCard.swift; sourceTree = "<group>"; };
+		CE0F50E731E7DC9C1C95152C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		DD96AF355352EC7C3D20B2A4 /* TripLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripLog.swift; sourceTree = "<group>"; };
+		F17DCB1F33E3C78779FA5265 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsView.swift; sourceTree = "<group>"; };
+		F269BABA3145EF0B39B6ED2C /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		5496B25269C6C54E7D202D8C /* TaksiGuvenlik */ = {
+			isa = PBXGroup;
+			children = (
+				18B936FFB10059A3CA250702 /* AppColors.swift */,
+				ACB111FD28BF2169C6E6F7E7 /* AppState.swift */,
+				1623BE218574F1984F208141 /* Assets.xcassets */,
+				F269BABA3145EF0B39B6ED2C /* BLEManager.swift */,
+				520E2E5840FA64A568B8AC4F /* BottomNavView.swift */,
+				4D207861E46C5C37014F5872 /* CameraView.swift */,
+				00F6C00DA934BE6FF364D91A /* ContentView.swift */,
+				09FFCE3F3448EFECA263F95C /* HomeView.swift */,
+				5AAFC46C9776BEFCD3551305 /* LoginView.swift */,
+				F17DCB1F33E3C78779FA5265 /* LogsView.swift */,
+				4B1E2C989135CAC3383A0E7F /* SampleData.swift */,
+				CE0F50E731E7DC9C1C95152C /* SettingsView.swift */,
+				808F9B841A6ECCA97A2106B5 /* TaksiGuvenlikApp.swift */,
+				BFE38A6C73BC1807F8922A8A /* TripCard.swift */,
+				DD96AF355352EC7C3D20B2A4 /* TripLog.swift */,
+			);
+			path = TaksiGuvenlik;
+			sourceTree = "<group>";
+		};
+		EB4C30F2DBB00944366F3A6B = {
+			isa = PBXGroup;
+			children = (
+				5496B25269C6C54E7D202D8C /* TaksiGuvenlik */,
+				F7B695518268F479B9E6EA33 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F7B695518268F479B9E6EA33 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1AABED576F64DF820935F3EA /* TaksiGuvenlik.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D681042D97199EB6EA886D70 /* TaksiGuvenlik */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2B317E6243052B149D7918A3 /* Build configuration list for PBXNativeTarget "TaksiGuvenlik" */;
+			buildPhases = (
+				F35A29129B0FDB0F3D4C0AC8 /* Sources */,
+				EA88757C971F74EB2B0B75AB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TaksiGuvenlik;
+			packageProductDependencies = (
+			);
+			productName = TaksiGuvenlik;
+			productReference = 1AABED576F64DF820935F3EA /* TaksiGuvenlik.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CFA9DCC322BA32D3BD1207AD /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					D681042D97199EB6EA886D70 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 241B50A05AF97692AD03A9DD /* Build configuration list for PBXProject "TaksiGuvenlik" */;
+			developmentRegion = tr;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				tr,
+			);
+			mainGroup = EB4C30F2DBB00944366F3A6B;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F7B695518268F479B9E6EA33 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D681042D97199EB6EA886D70 /* TaksiGuvenlik */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EA88757C971F74EB2B0B75AB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				831DED201E8912CD3EF79CA8 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F35A29129B0FDB0F3D4C0AC8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C9606DC28EB92DFD4147261C /* AppColors.swift in Sources */,
+				DFEABAE2E5F9890F92D50761 /* AppState.swift in Sources */,
+				69C97DA95B9EA9A9D945F2A5 /* BLEManager.swift in Sources */,
+				71F05A07AB60641F2C0B32CD /* BottomNavView.swift in Sources */,
+				C4ED57E510FE30B8BB0A6CC8 /* CameraView.swift in Sources */,
+				794260FC5C07151FFD8729D6 /* ContentView.swift in Sources */,
+				398D213C06B78085DA96EEB7 /* HomeView.swift in Sources */,
+				2D013FD1FAE9E4F56C20F3A0 /* LoginView.swift in Sources */,
+				E375E53BC5366D3A7A5471CC /* LogsView.swift in Sources */,
+				8837D7CF8AA3CA6874DA0C30 /* SampleData.swift in Sources */,
+				E18AEAC855797E8D7E70A2B2 /* SettingsView.swift in Sources */,
+				8D8D8C07480D5D7BA7962697 /* TaksiGuvenlikApp.swift in Sources */,
+				A27D8A1CB0FF31FEF18F4F29 /* TripCard.swift in Sources */,
+				8A4F6DA3A580E9A3F29974F2 /* TripLog.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0B89935AADB7BA12E8A4C624 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 3R9ULKMUXY;
+				INFOPLIST_FILE = TaksiGuvenlik/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.gokturk.taksiguvenlik;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		C4FBADD96BA4F7561768195B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDevelopmentRegion = tr;
+				INFOPLIST_KEY_CFBundleDisplayName = "Taksi Güvenlik";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = tel;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "HM-10 BLE modülünden gelen MATCH ve PANIC sinyallerini dinlemek için Bluetooth izni gerekiyor.";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "HM-10 BLE modülü ile haberleşmek için Bluetooth izni gerekiyor.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIBackgroundModes = "bluetooth-central";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "armv7 bluetooth-le";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		E0A3CF5CDD788B3A0959488C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDevelopmentRegion = tr;
+				INFOPLIST_KEY_CFBundleDisplayName = "Taksi Güvenlik";
+				INFOPLIST_KEY_LSApplicationQueriesSchemes = tel;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "HM-10 BLE modülünden gelen MATCH ve PANIC sinyallerini dinlemek için Bluetooth izni gerekiyor.";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "HM-10 BLE modülü ile haberleşmek için Bluetooth izni gerekiyor.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIBackgroundModes = "bluetooth-central";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "armv7 bluetooth-le";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		E5EA5114852C8081510EA7B9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 3R9ULKMUXY;
+				INFOPLIST_FILE = TaksiGuvenlik/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.gokturk.taksiguvenlik;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		241B50A05AF97692AD03A9DD /* Build configuration list for PBXProject "TaksiGuvenlik" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C4FBADD96BA4F7561768195B /* Debug */,
+				E0A3CF5CDD788B3A0959488C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		2B317E6243052B149D7918A3 /* Build configuration list for PBXNativeTarget "TaksiGuvenlik" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E5EA5114852C8081510EA7B9 /* Debug */,
+				0B89935AADB7BA12E8A4C624 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CFA9DCC322BA32D3BD1207AD /* Project object */;
+}

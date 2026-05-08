@@ -1,0 +1,8 @@
+insightface>=0.7.3
+onnxruntime>=1.18
+opencv-python>=4.10
+numpy>=1.26
+mediapipe==0.10.21
+pyyaml>=6.0
+pyserial>=3.5
+torch>=2.2
