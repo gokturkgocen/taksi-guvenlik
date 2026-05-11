@@ -173,23 +173,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* LD2 onboard blue LED heartbeat ~1 Hz (PB7). */
+    /* LD2 (PB7) blue heartbeat ~1 Hz so we know the firmware is alive. */
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-    HAL_GPIO_TogglePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin);
-
-    /* Continuously spam USART3 so we can rule out one-shot timing issues.
-     * If the ST-LINK VCP path is alive, we should see a steady stream of
-     * "tick N\r\n" lines on /dev/tty.usbmodem1103 at 115200. */
-    static uint32_t tick = 0;
-    char buf[80];
-    int n = snprintf(buf, sizeof(buf),
-                     "tick %lu hclk=%lu pclk1=%lu pclk2=%lu\r\n",
-                     tick++,
-                     HAL_RCC_GetHCLKFreq(),
-                     HAL_RCC_GetPCLK1Freq(),
-                     HAL_RCC_GetPCLK2Freq());
-    HAL_UART_Transmit(&huart3, (uint8_t*)buf, n, 200);
-
     HAL_Delay(500);
     /* USER CODE END WHILE */
 
