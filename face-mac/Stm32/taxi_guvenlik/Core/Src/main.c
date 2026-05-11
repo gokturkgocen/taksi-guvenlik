@@ -23,8 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
-#include "camera_io.h"
-#include "ov5640.h"
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +54,38 @@ UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
+/* Application state machine. Single-passenger flow: TARA → SCAN → MATCH/NOMATCH → IDLE.
+ * PANIC button bypasses scan and goes straight to alert. */
+typedef enum {
+    STATE_IDLE = 0,
+    STATE_SCANNING,
+    STATE_MATCH,
+    STATE_NOMATCH,
+    STATE_PANIC,
+    STATE_NETERR,
+} app_state_t;
+
+static volatile app_state_t app_state = STATE_IDLE;
+static uint32_t state_entered_ms = 0;
+static char match_name[48] = {0};
+static float match_sim = 0.0f;
+
+/* USART1 line buffer — receives RESULT/ERR/HB from ESP32-CAM. */
+static uint8_t uart1_rxb = 0;
+static char uart1_line[96];
+static volatile size_t uart1_idx = 0;
+static volatile bool uart1_line_ready = false;
+
+/* Pending event flags set from EXTI ISR, consumed in main loop. */
+static volatile bool flag_tara = false;
+static volatile bool flag_panic = false;
+
+#define SCAN_TIMEOUT_MS    15000  /* ESP-CAM should answer within this. */
+#define MATCH_HOLD_MS       5000  /* How long to hold red+buzzer on MATCH. */
+#define NOMATCH_HOLD_MS     1000
+#define PANIC_HOLD_MS       5000
+#define NETERR_HOLD_MS      3000
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -70,7 +101,12 @@ static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 static void SystemClock_Config_216MHz(void);
 static void uart_set_baud(UART_HandleTypeDef *huart, uint32_t baud);
-int _write(int fd, char *ptr, int len); /* printf retarget to USART3 (ST-LINK VCP) */
+static void enter_state(app_state_t s);
+static void apply_state_outputs(app_state_t s);
+static void send_cam(const char *line);     /* USART1 → ESP32-CAM */
+static void send_phone(const char *line);   /* USART2 → HM-10 → Android */
+static void process_cam_line(const char *line);
+int _write(int fd, char *ptr, int len);     /* printf retarget to USART3 */
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -119,16 +155,19 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  /* USART baud overrides — CubeMX hard-codes 115200 across the board, we
-   * want USART1→ESP32 at 921600 and USART2→HM-10 at 9600. USART3 stays at
-   * 115200 for ST-LINK VCP printf. */
-  uart_set_baud(&huart1, 921600);
+  /* USART baud overrides — CubeMX hard-codes 115200 across the board.
+   *   USART1 → ESP32-CAM      : 115200 (ASCII command/result, throughput trivial)
+   *   USART2 → HM-10 BLE      : 9600   (HM-10 default)
+   *   USART3 → ST-LINK VCP    : 115200 (printf debug, unchanged)
+   * USART1 dropped from 921600 to 115200 since we no longer push JPEG
+   * payloads through it — only short ASCII lines like CAPTURE\n / RESULT:..\n.
+   */
+  uart_set_baud(&huart1, 115200);
   uart_set_baud(&huart2, 9600);
   uart_set_baud(&huart3, 115200);
 
-  /* Configure onboard LD2 blue LED (PB7) for heartbeat — visible without
-   * external wiring. CubeMX didn't map PB7 since we used it transiently for
-   * DCMI VSYNC and then freed it. */
+  /* Configure onboard LD2 blue LED (PB7) as heartbeat — visible without
+   * external wiring. CubeMX didn't map PB7. */
   {
       GPIO_InitTypeDef gp = {0};
       gp.Pin = GPIO_PIN_7;
@@ -138,44 +177,75 @@ int main(void)
       HAL_GPIO_Init(GPIOB, &gp);
   }
 
-  /* Direct UART transmit bypasses printf/newlib syscalls so we can tell whether
-   * the USART3 → ST-LINK VCP path is alive independent of stdio config. */
-  {
-      const char hello[] = "\r\n[STM] boot (direct HAL)\r\n";
-      HAL_UART_Transmit(&huart3, (uint8_t*)hello, sizeof(hello)-1, 200);
-  }
-
-  /* Force stdout unbuffered so each printf goes out immediately via USART3. */
   setvbuf(stdout, NULL, _IONBF, 0);
+  printf("\r\n[STM] boot, HCLK=%lu Hz, plan-B (esp-cam slave)\r\n",
+         HAL_RCC_GetHCLKFreq());
 
-  printf("[STM] boot (printf), HCLK=%lu Hz\r\n", HAL_RCC_GetHCLKFreq());
-
-  /* Power-cycle OV5640 (PWDN low = enabled, RESET pulse). */
+  /* Camera control pins are no longer wired to anything in Plan B but the
+   * GPIO outputs still exist (CubeMX-generated). Leave them low/idle. */
   HAL_GPIO_WritePin(CAM_PWDN_GPIO_Port, CAM_PWDN_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(CAM_RESET_GPIO_Port, CAM_RESET_Pin, GPIO_PIN_RESET);
-  HAL_Delay(20);
-  HAL_GPIO_WritePin(CAM_RESET_GPIO_Port, CAM_RESET_Pin, GPIO_PIN_SET);
-  HAL_Delay(30);
 
-  uint16_t cam_id = ov5640_ReadID(OV5640_I2C_ADDRESS);
-  printf("[STM] OV5640 ID read: 0x%04X (expected 0x5640)\r\n", cam_id);
+  /* Start UART1 line reception (1 byte at a time, assemble lines in ISR). */
+  HAL_UART_Receive_IT(&huart1, &uart1_rxb, 1);
 
-  if (cam_id == OV5640_ID) {
-      /* Green LED steady → camera I2C OK. */
-      HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
-  } else {
-      /* Red LED steady → camera not responding or wired wrong. */
-      HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_SET);
-  }
+  enter_state(STATE_IDLE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* LD2 (PB7) blue heartbeat ~1 Hz so we know the firmware is alive. */
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-    HAL_Delay(500);
+    /* Heartbeat for "firmware alive" — blink LD2 (PB7) every 500 ms. */
+    static uint32_t last_blink = 0;
+    uint32_t now = HAL_GetTick();
+    if (now - last_blink >= 500) {
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+        last_blink = now;
+    }
+
+    /* Button events from EXTI. */
+    if (flag_panic) {
+        flag_panic = false;
+        printf("[STM] PANIC button pressed\r\n");
+        send_phone("PANIC\n");
+        enter_state(STATE_PANIC);
+    }
+    if (flag_tara) {
+        flag_tara = false;
+        if (app_state == STATE_IDLE) {
+            printf("[STM] TARA pressed, requesting capture\r\n");
+            send_phone("SCANNING\n");
+            send_cam("CAPTURE\n");
+            enter_state(STATE_SCANNING);
+        } else {
+            printf("[STM] TARA ignored (state=%d)\r\n", app_state);
+        }
+    }
+
+    /* ESP32-CAM lines on USART1. */
+    if (uart1_line_ready) {
+        process_cam_line(uart1_line);
+        uart1_idx = 0;
+        uart1_line_ready = false;
+    }
+
+    /* Scan timeout: if ESP-CAM doesn't answer in time, drop to NETERR. */
+    if (app_state == STATE_SCANNING &&
+        (now - state_entered_ms) > SCAN_TIMEOUT_MS) {
+        printf("[STM] scan timeout\r\n");
+        send_phone("NETERR\n");
+        enter_state(STATE_NETERR);
+    }
+
+    /* Auto-return to IDLE after hold period for transient states. */
+    uint32_t elapsed = now - state_entered_ms;
+    if ((app_state == STATE_MATCH   && elapsed > MATCH_HOLD_MS)   ||
+        (app_state == STATE_NOMATCH && elapsed > NOMATCH_HOLD_MS) ||
+        (app_state == STATE_PANIC   && elapsed > PANIC_HOLD_MS)   ||
+        (app_state == STATE_NETERR  && elapsed > NETERR_HOLD_MS)) {
+        enter_state(STATE_IDLE);
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -560,6 +630,137 @@ int _write(int fd, char *ptr, int len) {
     (void)fd;
     HAL_UART_Transmit(&huart3, (uint8_t *)ptr, len, 100);
     return len;
+}
+
+/* ─── state machine ─── */
+
+static void apply_state_outputs(app_state_t s) {
+    /* Reset everything, then set what this state wants on. */
+    HAL_GPIO_WritePin(LED_GREEN_GPIO_Port,  LED_GREEN_Pin,  GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LED_RED_GPIO_Port,    LED_RED_Pin,    GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(BUZZER_GPIO_Port,     BUZZER_Pin,     GPIO_PIN_RESET);
+
+    switch (s) {
+    case STATE_IDLE:
+        HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
+        break;
+    case STATE_SCANNING:
+        HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_SET);
+        break;
+    case STATE_MATCH:
+    case STATE_PANIC:
+        HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(BUZZER_GPIO_Port,  BUZZER_Pin,  GPIO_PIN_SET);
+        break;
+    case STATE_NOMATCH:
+        HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
+        break;
+    case STATE_NETERR:
+        HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(LED_RED_GPIO_Port,    LED_RED_Pin,    GPIO_PIN_SET);
+        break;
+    }
+}
+
+static void enter_state(app_state_t s) {
+    app_state = s;
+    state_entered_ms = HAL_GetTick();
+    apply_state_outputs(s);
+    static const char *names[] = {
+        "IDLE","SCANNING","MATCH","NOMATCH","PANIC","NETERR"
+    };
+    printf("[STM] -> %s\r\n", names[s]);
+}
+
+static void send_cam(const char *line) {
+    HAL_UART_Transmit(&huart1, (uint8_t*)line, strlen(line), 200);
+}
+
+static void send_phone(const char *line) {
+    HAL_UART_Transmit(&huart2, (uint8_t*)line, strlen(line), 200);
+}
+
+/* Parse a single line received from ESP32-CAM and drive state machine. */
+static void process_cam_line(const char *line) {
+    printf("[STM] cam: %s\r\n", line);
+
+    if (strncmp(line, "RESULT:", 7) == 0) {
+        /* Format: RESULT:<1|0>;<name>;<sim> */
+        int matched = 0;
+        char name[48] = {0};
+        float sim = 0.0f;
+        const char *p = line + 7;
+        matched = (*p == '1') ? 1 : 0;
+        p = strchr(p, ';');
+        if (p) {
+            p++;
+            const char *q = strchr(p, ';');
+            if (q) {
+                size_t n = (size_t)(q - p);
+                if (n >= sizeof(name)) n = sizeof(name) - 1;
+                memcpy(name, p, n);
+                name[n] = '\0';
+                sim = strtof(q + 1, NULL);
+            }
+        }
+
+        if (matched) {
+            strncpy(match_name, name, sizeof(match_name) - 1);
+            match_sim = sim;
+            char phone_msg[80];
+            snprintf(phone_msg, sizeof(phone_msg),
+                     "MATCH:%s;%.2f\n", match_name, match_sim);
+            send_phone(phone_msg);
+            enter_state(STATE_MATCH);
+        } else {
+            send_phone("NOMATCH\n");
+            enter_state(STATE_NOMATCH);
+        }
+    } else if (strncmp(line, "ERR:", 4) == 0) {
+        send_phone("NETERR\n");
+        enter_state(STATE_NETERR);
+    } else if (strncmp(line, "HB", 2) == 0) {
+        /* ESP-CAM heartbeat, no action needed. */
+    } else {
+        /* Unknown — ignore. */
+    }
+}
+
+/* HAL callbacks (weak in HAL, overridden here) */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart == &huart1) {
+        char c = (char)uart1_rxb;
+        if (c == '\n' || c == '\r') {
+            if (uart1_idx > 0 && !uart1_line_ready) {
+                uart1_line[uart1_idx] = '\0';
+                uart1_line_ready = true;
+            }
+        } else if (uart1_idx < sizeof(uart1_line) - 1) {
+            uart1_line[uart1_idx++] = c;
+        } else {
+            /* line overflow — drop it. */
+            uart1_idx = 0;
+        }
+        HAL_UART_Receive_IT(&huart1, &uart1_rxb, 1);
+    }
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+    if (huart == &huart1) {
+        uart1_idx = 0;
+        uart1_line_ready = false;
+        HAL_UART_Receive_IT(&huart1, &uart1_rxb, 1);
+    }
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t pin) {
+    if (pin == BTN_SCAN_Pin) {
+        flag_tara = true;
+    } else if (pin == BTN_PANIC_Pin) {
+        flag_panic = true;
+    }
 }
 
 /* USER CODE END 4 */
