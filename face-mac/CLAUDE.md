@@ -17,43 +17,53 @@
 **Teslim:** 12 gün içinde sunum + sergi.
 **Test telefonu:** Samsung Galaxy S20 FE.
 
-## Nihai mimari (kilitli)
+## Nihai mimari (kilitli — Plan B aktif)
+
+> Standalone DVP OV5640 modülü Çankaya'da bulunamadı. Plan A (STM-merkezli +
+> DCMI + ayrı kamera) terkedildi. **Plan B** kilitli: kamera + Wi-Fi tek
+> board'da ESP32-CAM (AI-Thinker, OV3660 sensör), STM32 olay yönetiminde kalır.
 
 ```
-                ┌─────────────────────────── ARAÇ İÇİ MODÜL ───────────────────────────┐
-                │                                                                       │
-   OV5640 ──DCMI──► STM32 NUCLEO-F767ZI                                                │
-   (yolcu)         │  • TARA buton IRQ (sürücü)                                         │
-                   │  • PANİK buton IRQ (sürücü)                                        │
-                   │  • Yeşil/Kırmızı/Sarı LED, buzzer                                  │
-                   │  • 5 FPS × 2 s = 10 frame burst capture                            │
-                   │                                                                    │
-                   ├──UART1 (921600)──► ESP32-WROOM-32                                  │
-                   │                    │ session_id üretir, 10 frame'i ardışık POST eder│
-                   │                    │ Wi-Fi STA (telefon hotspot)                   │
-                   │                    └─HTTP─► EC2 sunucu (Faz 1)                     │
-                   │                    └─HTTPS─► Domain (Faz 2, opsiyonel)             │
-                   │                                                                    │
-                   └──UART2 (9600)────► HM-10/HM-19/AT-09 BLE module                    │
-                                        │                                               │
-                └───────────────────────┼───────────────────────────────────────────────┘
-                                        │ BLE GATT (FFE0/FFE1)
-                                        ▼
-                                Samsung Galaxy S20 FE
-                                • BLE central (foreground service)
-                                • MATCH:.. notification
-                                • Intent.ACTION_CALL("tel:155")
-                                • Hotspot kaynak (4G/5G)
+                ┌────────────────────────── ARAÇ İÇİ MODÜL ─────────────────────────┐
+                │                                                                    │
+   Yolcu yüzü → ESP32-CAM (AI-Thinker)                                              │
+                │  • OV3660 kamera + ESP32 entegre                                   │
+                │  • 5 FPS × 2 s = 10 frame burst capture                            │
+                │  • Wi-Fi STA (telefon hotspot)                                     │
+                │  • HTTP POST → EC2 sunucu, session/frame headers                   │
+                │                                                                    │
+                │  IO13 (TX) / IO14 (RX) UART 115200                                 │
+                │   ▲                                                                │
+                │   │ "CAPTURE\n" komut                                              │
+                │   │ "RESULT:<1|0>;<name>;<sim>\n" cevap                            │
+                │   ▼                                                                │
+   STM32 NUCLEO-F767ZI                                                              │
+                │  • TARA buton IRQ (PC13, B1 USER)                                  │
+                │  • PANİK buton IRQ (PA0, harici)                                   │
+                │  • LED: yeşil/kırmızı/sarı + buzzer                                │
+                │  • State machine: IDLE/SCANNING/MATCH/NOMATCH/PANIC/NETERR         │
+                │  • Scan timeout 15 s → NETERR                                      │
+                │                                                                    │
+                └──USART2 (9600)───► HM-10/HM-19 BLE module                          │
+                                     │                                              │
+                ─────────────────────┼──────────────────────────────────────────────┘
+                                     │ BLE GATT (FFE0/FFE1)
+                                     ▼
+                              Android telefon (Samsung S20 FE veya iPhone)
+                              • BLE central (foreground service)
+                              • MATCH/PANIC/NETERR notification
+                              • Intent.ACTION_CALL("tel:155")
+                              • Hotspot kaynak (4G/5G veri)
 
-                                EC2 m7i-flex.large (eu-central-1, Frankfurt)
-                                http://18.192.45.175:8000  (IP'yi Elastic IP'ye almak gerekebilir)
-                                ┌──────────────────────────────┐
-                                │ Flask + InsightFace buffalo_l │
-                                │ session manager + 10-frame   │
-                                │ centroid agregasyon          │
-                                │ pickle DB (/app/data/...)    │
-                                │ passive liveness skoru       │
-                                └──────────────────────────────┘
+                              EC2 m7i-flex.large (eu-central-1, Frankfurt)
+                              http://18.192.45.175:8000
+                              ┌──────────────────────────────┐
+                              │ Flask + InsightFace buffalo_l │
+                              │ session manager + 10-frame   │
+                              │ centroid agregasyon          │
+                              │ pickle DB (/app/data/...)    │
+                              │ passive liveness skoru       │
+                              └──────────────────────────────┘
 ```
 
 ## Veri akışı (10-frame burst)
