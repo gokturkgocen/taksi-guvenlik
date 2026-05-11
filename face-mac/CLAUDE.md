@@ -1,29 +1,28 @@
-# Taksi Güvenlik — Bitirme Projesi (NİHAİ MİMARİ)
+# Taksi Güvenlik — Bitirme Projesi
 
-> **Yeni bir oturuma başladığında ÖNCE bu dosyayı oku.** Sonra "Oturum başı protokolü" adımlarını sırayla uygula. Bu mimari kilitlendi (2026 Mayıs), aksi yönde iş yapma.
+> **Yeni bir oturuma başladığında ÖNCE bu dosyayı oku.** Mimari kilitli, aksi yönde iş yapma.
 
 ## Oturum başı protokolü
 1. Bu dosyayı baştan sona oku.
-2. Mimari **kilitli**. AWS Rekognition / Lambda / iPhone-app aktif yol değil — birinciyi sildik, ikincisi rafta.
-3. Rapor: `/Users/gokturkgocen/Bitirme/Ekin_Ag_aog_lu_Gelis_imRaporu.pdf` — Ege Üniversitesi gelişme raporu. Hedef metrikler ve mimari kısıtlar burada. **Rapor donduruldu, değiştirilemez.**
-4. Kullanıcı Göktürk Göcen (gokturk@robodor.com). Rapor "Ekin Ağaoğlu" adına — proje ortağı olabilir, netlik gerektikçe sor.
-5. Bu projede **Türkçe konuş** — global "İngilizce" kuralını ezer.
-6. Auto modda bile büyük mimari sapmalardan önce kullanıcıyı uyar.
+2. Rapor: `/Users/gokturkgocen/Bitirme/Ekin_Ag_aog_lu_Gelis_imRaporu.pdf` — Ege Üniversitesi gelişme raporu. Hedef metrikler ve mimari kısıtlar burada. **Rapor donduruldu, değiştirilemez.**
+3. Kullanıcı Göktürk Göcen (gokturk@robodor.com). Rapor "Ekin Ağaoğlu" adına — proje ortağı, partner Mac'i `/Users/ekinagaoglu/bitirme/` altında çalışıyor.
+4. Bu projede **Türkçe konuş** — global "İngilizce" kuralını ezer.
+5. Auto modda bile mimari sapmadan önce kullanıcıyı uyar.
 
 ## Proje özeti
-**Ne:** Takside arka koltuğa oturan yolcunun yüzünü 10 frame'lik kısa bir burst ile tarayıp, bizim host ettiğimiz InsightFace tabanlı sunucuda suçlu yüz veritabanıyla karşılaştırmak. Eşleşme varsa otomatik **155** (polis) çağrısı.
+**Ne:** Takside arka koltuğa oturan yolcunun yüzünü 10 frame'lik kısa burst ile tarayıp, EC2'de host ettiğimiz InsightFace tabanlı sunucuda suçlu yüz veritabanıyla karşılaştırmak. Eşleşme varsa Android telefon BLE üzerinden komut alıp otomatik **155** çağrısı.
 
 **Kime:** Ege Üniversitesi EE Bölümü bitirme tezi (2025–2026 dönemi).
 **Danışman:** Aydoğan Savran.
-**Teslim:** İkinci dönem sonu (~2026 Haziran).
-**Test telefonu:** Samsung Galaxy S20 FE (kullanıcının eski telefonu, tüm izinler verilebilir).
+**Teslim:** 12 gün içinde sunum + sergi.
+**Test telefonu:** Samsung Galaxy S20 FE.
 
-## Nihai mimari
+## Nihai mimari (kilitli)
 
 ```
                 ┌─────────────────────────── ARAÇ İÇİ MODÜL ───────────────────────────┐
                 │                                                                       │
-   OV2640 ──DCMI──► STM32 NUCLEO-F767ZI                                                │
+   OV5640 ──DCMI──► STM32 NUCLEO-F767ZI                                                │
    (yolcu)         │  • TARA buton IRQ (sürücü)                                         │
                    │  • PANİK buton IRQ (sürücü)                                        │
                    │  • Yeşil/Kırmızı/Sarı LED, buzzer                                  │
@@ -32,9 +31,10 @@
                    ├──UART1 (921600)──► ESP32-WROOM-32                                  │
                    │                    │ session_id üretir, 10 frame'i ardışık POST eder│
                    │                    │ Wi-Fi STA (telefon hotspot)                   │
-                   │                    └─HTTP/HTTPS─► Sunucu                           │
+                   │                    └─HTTP─► EC2 sunucu (Faz 1)                     │
+                   │                    └─HTTPS─► Domain (Faz 2, opsiyonel)             │
                    │                                                                    │
-                   └──UART2 (9600)────► HM-10 BLE module                                │
+                   └──UART2 (9600)────► HM-10/HM-19/AT-09 BLE module                    │
                                         │                                               │
                 └───────────────────────┼───────────────────────────────────────────────┘
                                         │ BLE GATT (FFE0/FFE1)
@@ -45,89 +45,61 @@
                                 • Intent.ACTION_CALL("tel:155")
                                 • Hotspot kaynak (4G/5G)
 
-                                Sunucu — Faz 1 / Faz 2 aynı kod
+                                EC2 m7i-flex.large (eu-central-1, Frankfurt)
+                                http://18.192.45.175:8000  (IP'yi Elastic IP'ye almak gerekebilir)
                                 ┌──────────────────────────────┐
                                 │ Flask + InsightFace buffalo_l │
                                 │ session manager + 10-frame   │
                                 │ centroid agregasyon          │
-                                │ pickle DB (yerel)            │
+                                │ pickle DB (/app/data/...)    │
                                 │ passive liveness skoru       │
                                 └──────────────────────────────┘
-                                Faz 1: Mac LAN  (geliştirme)
-                                Faz 2: EC2 t3.small  (production)
 ```
 
 ## Veri akışı (10-frame burst)
 
 ```
-1. Sürücü TARA butonuna basar
-2. STM SARI LED yanar, HM-10'dan "SCANNING\n" iletir
-3. STM, HAL timer ile 5 FPS × 2 sn = 10 frame yakalar
-4. Her frame yakalandığında:
-     STM → UART1 → ESP32: { TYPE=IMG, payload=JPEG bytes }
-     ESP32:
-       - İlk IMG'de: session_id (UUID v4) üret
-       - HTTP POST → SERVER_URL/search
-         Headers:
-           X-Session-Id: <uuid>
-           X-Frame-Index: 1..10
-           X-Frame-Total: 10
-         Body: JPEG bytes
-       - Ara frame'lerde server "continue" döner, ESP STM'e bir şey iletmez
-5. 10. frame de gönderildiğinde server agregasyonu yapar:
+1. Sürücü TARA butonuna basar → STM SARI LED + HM-10'dan "SCANNING\n"
+2. STM, 5 FPS × 2 sn = 10 frame yakalar (DCMI/DMA, OV5640 JPEG encoder)
+3. Her frame: STM → UART1 → ESP32; ESP HTTP POST → EC2 (X-Session-Id, X-Frame-Index, X-Frame-Total)
+4. 10. frame'de server agregasyon:
      - Her frame'de RetinaFace ile yüz tespit
-     - Kalite filtresi (det_score, blur, size, yaw)
-     - Geçen frame'lerden ArcFace embedding al
-     - Embedding centroid'i + cosine similarity ile DB match
-     - Passive liveness: embedding cross-frame std
-     - Final JSON: {match, name, similarity, frames_used, frames_total, liveness_score}
-6. ESP server cevabını parse eder, kompakt CSV "1;Ali_Yilmaz;0.94" olarak STM'e:
-     ESP → UART1 → STM: { TYPE=RESULT, payload="1;Ali_Yilmaz;0.94" }
-7. STM:
-     MATCH: KIRMIZI LED + buzzer 2 sn, HM-10'dan "MATCH:Ali_Yilmaz;0.94\n"
-     NOMATCH: YEŞİL LED 1 sn, HM-10'dan "NOMATCH\n"
-8. Telefon BLE notify alır, MATCH ise Intent.ACTION_CALL("tel:155")
+     - Kalite filtresi (det_score ≥0.7, blur ≥50, alan ≥80×80, yaw ≤30°)
+     - Geçenlerden ArcFace embedding al, centroid'i hesapla
+     - DB ile cosine sim → en yakın eşleşme
+     - Embedding cross-frame std → passive liveness skoru
+5. ESP sonucu CSV `"1;Ali_Yilmaz;0.94"` olarak STM'e UART üstünden döner
+6. STM: MATCH → KIRMIZI LED + buzzer + HM-10 → "MATCH:..\n"; NOMATCH → YEŞİL LED
+7. Telefon BLE notify alır, MATCH ise `Intent.ACTION_CALL("tel:155")`
 ```
 
-Tipik uçtan uca süre: **~5-7 saniye** (10 frame × ~500 ms server inference + UART/Wi-Fi latency). Yolcu binişinde fazlasıyla kabul edilebilir, sürücü için bu süre boyunca sarı LED yanıp sönüyor.
+Tipik uçtan uca: ~5-7 sn (latency önemsiz, "yolcu binişi başına bir tarama").
 
-## Faz 1 — Mac LAN sunucu (geliştirme)
+## Faz 1 vs Faz 2
 
-Mac'te `face-mac/server/app.py` Flask development server. Mac telefon hotspot'una veya ev WiFi'sına bağlı, ESP32 aynı ağda.
+**Faz 1 — EC2 sunucu, HTTP, public IP (mevcut durum):**
+- `http://18.192.45.175:8000/search`
+- TLS yok, auth yok, port 8000 dünyaya açık (`SHARED_SECRET` env ile body-key auth eklenebilir, server kodu hazır)
+- Demo + test için yeterli
 
-ESP `config.h`:
-```c
-#define SERVER_URL "http://192.168.1.50:8000/search"
-#define USE_TLS    0
-```
-
-Sıfır TLS, sıfır auth, LAN içi. Hızlı debug için ideal. Tüm uçtan uca akış burada doğrulanır.
-
-## Faz 2 — Cloud sunucu (production)
-
-Faz 1'deki **aynı kod** Docker'lanır → EC2 t3.small'a deploy. ESP'nin URL'si değişir.
-
-```c
-#define SERVER_URL "https://taxi.your-domain.com/search"
-#define USE_TLS    1
-```
-
-Maliyet: AWS hediye krediyle ($100) tez bitene kadar bedava. EC2 t3.small ~$15/ay, 6+ ay free tier sonrası.
-
-Geçiş efor: 1-2 gün (Dockerfile var, deploy_ec2.sh var, sadece domain + Let's Encrypt + ESP cert flash).
+**Faz 2 — Domain + HTTPS (opsiyonel, vakit kalırsa):**
+- Domain (örn. `taxi.example.com`) → EC2 IP'ye A kaydı
+- Caddy / nginx reverse proxy + Let's Encrypt sertifikası
+- ESP `config.h`: `SERVER_URL` https olur, `USE_TLS 1`, ISRG Root X1 cert eklenir
+- Faz 2'ye geçiş: ~half day
 
 ## Mimari ↔ Rapor uyumu
 
-| Rapor bölümü | Bizim karşılığımız |
+| Rapor bölümü | Karşılığı |
 |---|---|
-| 3.1 görüntü alma + ön-işleme | OV2640 + STM32 DCMI |
-| 3.2 API destekli yaklaşım (seçilen) | Kendi InsightFace API'mizi host ediyoruz ✓ |
-| 3.3 iş akışı (5 adım) | Capture → crop (server) → API → karar → UART. Bire bir. |
-| 3.3.1 ağ yokken safe-mode | ESP timeout → STM SARI LED + "NETERR" mesajı |
+| 3.1 görüntü alma + ön-işleme | OV5640 + STM32 DCMI |
+| 3.2 API destekli yaklaşım (seçilen) | Kendi InsightFace API'mizi host ediyoruz |
+| 3.3 iş akışı (5 adım) | Bire bir uyuyor (multi-frame burst varyantı) |
+| 3.3.1 ağ yokken safe-mode | ESP timeout → STM SARI LED + "NETERR" |
 | 3.4 STM olay yönetimi | LED/buzzer/panik/BLE forward |
-| 3.4.1 BT + telefon gateway | HM-10 + Android (Intent.ACTION_CALL) |
+| 3.4.1 BT + telefon gateway | HM-10 (veya HM-19/AT-09) + Android Intent.ACTION_CALL |
 | 3.4.2 mesaj çerçevesi (TYPE/LEN/CRC) | Binary frame STM↔ESP, ASCII STM↔HM-10 |
-| 6.1 Pi 4 (1599 TL) | DÜŞER — yerel CV server-side, ESP32+OV2640+HM-10 < 300 TL |
+| 6.1 Pi 4 (1599 TL) | DÜŞER — yerel CV server-side, donanım bütçesi <500 TL |
 
 > Tezde "API destekli" = bizim host ettiğimiz InsightFace REST API. AWS Rekognition gibi kapalı kutu değil, modeli biz seçtik (buffalo_l = ArcFace R100), modeli biz değerlendirdik (FAR/FRR), servisi biz deploy ettik.
 
@@ -135,33 +107,47 @@ Geçiş efor: 1-2 gün (Dockerfile var, deploy_ec2.sh var, sadece domain + Let's
 
 | Parça | Adet | Tahmini fiyat | Not |
 |---|---|---|---|
-| STM32 NUCLEO-F767ZI | 1 | 2338 TL (var) | Beyin |
-| OV2640 modül (DCMI 18-pin başlık) | 1 | ~80 TL | Donanım JPEG encoder |
-| ESP32-WROOM-32 DevKit | 1 | ~80 TL | Wi-Fi köprü |
-| HM-10 BLE modül | 1 | ~80 TL | Telefon BLE |
+| STM32 NUCLEO-F767ZI | 1 | 2338 TL (var) | Beyin, DCMI sahibi |
+| OV5640 modül (DVP/parallel, 18-pin, lens'li, onboard regülatörlü) | 1 | ~100-150 TL | OV2640 alternatifi, ST resmi BSP driver mevcut |
+| ESP32-WROOM-32 DevKit (DOIT V1) | 1 | ~80-120 TL | Wi-Fi köprü |
+| HM-19 / HM-10 / AT-09 BLE modül | 1 | ~80 TL | HM-19 tercih, CC2541 klonları çalışır |
 | LED kit (yeşil/kırmızı/sarı) + 220 Ω | 3 + 3 | ~10 TL | Sürücü gösterge |
 | Aktif buzzer 5 V | 1 | ~15 TL | Eşleşme uyarı |
-| Push button (taktil) | 2 | ~10 TL | TARA + PANİK |
-| Breadboard + jumper + 5V/3A USB güç | - | ~100 TL | Prototip |
-| **Toplam ekstra** | | **~375 TL** | Rapor 5000 TL bütçe içinde |
+| Push button taktil 6×6 mm | 2-4 | ~10 TL | TARA + PANİK |
+| Breadboard + jumper kablo seti | - | ~100 TL | Prototip |
+| USB-TTL converter (CP2102 / FT232) | 1 | ~50 TL | HM AT komut, ESP-CAM flash |
+| Yedek 40-pin male header pin | 2 strip | ~10 TL | Modül başlığı yoksa |
+| **Toplam ekstra** | | **~480 TL** | Rapor 5000 TL bütçe içinde |
+| ESP32-CAM AI-Thinker (Plan B sigorta) | 1 | ~120 TL | OV5640+DCMI takılırsa devreye |
 
-## Pin plan (taslak — CubeMX'te finalize edilecek)
+EC2 (Faz 1): m7i-flex.large eu-central-1, AWS $200 hediye krediyle 12 gün için ~$23.
 
-> F767ZI'de Ethernet default aktif, DCMI pinleri ile çakışıyor. **CubeMX'te ETH disable.**
+## Plan B (ESP32-CAM, OV5640+DCMI başarısız olursa)
 
-DCMI (OV2640):
-- HSYNC: PA4
-- VSYNC: PG9 (PB7 LD2 LED'i ile çakışmasın)
-- PIXCLK: PA6
-- D0–D7: PC6, PC7, PE0, PE1, PE4, PE5, PE6, PB6
+Eğer STM32 + OV5640 DCMI entegrasyonu 1-2 günden fazla tıkanırsa:
+- ESP32-CAM kameranın yerine geçer, kendi kamerasıyla yakalar ve Wi-Fi'dan AWS'e POST'lar
+- STM32 sadece TARA buton + PANİK + LED + buzzer + HM-10 ↔ Android olur
+- STM32 ↔ ESP32-CAM UART komut köprüsü: "CAPTURE" komutu + sonuç döner
+- Tez argumanı: "STM = olay orkestratörü, ESP32-CAM = delege edilmiş görüntü+ağ peripheral" — hala savunulabilir
+- Geçiş süresi: ~1 gün firmware revize
+
+## Pin plan (STM32, CubeMX'te finalize)
+
+> F767ZI'de Ethernet default aktif, DCMI pinleriyle çakışıyor. **CubeMX'te ETH disable.** Wi-Fi'ı ESP'ten alıyoruz.
+
+DCMI (OV5640, 8-bit parallel):
+- HSYNC: PA4 (CN7-17)
+- VSYNC: PG9 (CN10-16) — PB7 LD2 LED ile çakışmasın
+- PIXCLK: PA6 (CN7-13)
+- D0-D7: PC6, PC7, PE0, PE1, PE4, PB6, PE5, PE6
 - SCCB I2C1: PB8 (SCL), PB9 (SDA)
 - PWDN: PB10, RESET: PB12
 
-UART1 (STM ↔ ESP32, 921600 baud, 8N1):
+UART1 (STM ↔ ESP32, 921600 baud):
 - TX: PA9, RX: PA10
-- ESP tarafı: STM_RX_PIN=16, STM_TX_PIN=17
+- ESP32 tarafı: STM_RX_PIN=16, STM_TX_PIN=17
 
-UART2 (STM ↔ HM-10, 9600 baud — HM-10 default):
+UART2 (STM ↔ HM-10, 9600 baud):
 - TX: PD5, RX: PD6
 
 GPIO:
@@ -178,7 +164,6 @@ Binary frame:
 ```
 +------+------+------+--------+----------+------+
 | 0xAA | 0x55 | TYPE | LEN_LE | PAYLOAD  | CRC8 |
-| sync | sync | 1 B  | 4 B    | LEN B    | 1 B  |
 +------+------+------+--------+----------+------+
 ```
 
@@ -191,29 +176,18 @@ TYPE:
 
 CRC8 polynomial 0x07, payload üzerinde.
 
-ESP burst session yönetimi:
-- İlk IMG'de session_id (UUID v4) üretir
-- 10 IMG sayar
-- Burst gap timeout (3 sn ardışık IMG gelmezse) ile yarım burst düşer
-
 ## STM32 ↔ HM-10 protokolü (UART2, 9600, ASCII text, newline)
 
 HM-10 transparent — STM'in UART2'ye yazdığı, BLE notify olarak telefona gider.
 
 STM → telefon:
 ```
-SCANNING\n           (TARA basıldı, burst başlıyor)
+SCANNING\n
 MATCH:<isim>;<skor>\n
 NOMATCH\n
 PANIC\n
-NETERR\n             (ESP'ten ERR geldi → safe-mode)
-HB\n                 (her 5 sn)
-```
-
-Telefon → STM (BLE write, opsiyonel ileride config için):
-```
-SETPHONE:155\n
-RESET\n
+NETERR\n
+HB\n
 ```
 
 ## Sunucu (Flask + InsightFace)
@@ -223,7 +197,7 @@ Konum: `face-mac/server/`
 Dosyalar:
 - `app.py` — Flask routes, session manager, agregasyon
 - `recognition.py` — InsightFace wrapper (buffalo_l), kalite filtresi
-- `db.py` — pickle DB, L2-normalized cosine match
+- `db.py` — pickle DB, L2-normalized cosine match, v1 Person backward-compat shim
 - `enroll.py` — CLI: tek fotoğrafla DB'ye kişi ekle
 - `requirements.txt`, `Dockerfile`, `deploy_ec2.sh`
 - `test_simulate_burst.py` — ESP32'yi simüle eden Mac test scripti
@@ -231,57 +205,24 @@ Dosyalar:
 Endpoint:
 - `GET /health` → DB boyutu + açık session sayısı
 - `POST /search` (header: `X-Session-Id`, `X-Frame-Index`, `X-Frame-Total`; body: JPEG)
-  - Ara frame'lerde: `{"status":"continue","frames_received":k,...}`
-  - Son frame'de: `{"match":bool,"name":str,"similarity":float,"frames_used":int,"liveness_score":float,...}`
 
 Agregasyon mantığı (final frame):
-1. Session içindeki kalite-geçen frame'lerin ArcFace embedding'lerini topla
+1. Session içindeki kalite-geçen frame'lerin embedding'lerini topla
 2. `MIN_QUALITY_FRAMES` (varsayılan 5) altındaysa: `insufficient_quality_frames`
-3. Embedding'lerin centroid'ini al → DB ile cosine sim
+3. Embedding'lerin centroid'i → DB ile cosine sim
 4. Threshold (varsayılan 0.4) üstündeyse MATCH
-5. Embedding cross-frame std → passive liveness skoru (replay tespiti için)
+5. Embedding cross-frame std → passive liveness skoru
 
-Kalite filtresi (her frame için):
-- det_score ≥ 0.7
-- bbox alanı ≥ 80×80
-- |yaw| ≤ 30°
-- Laplacian variance (blur) ≥ 50
+Kalite filtresi (her frame): det_score ≥0.7, alan ≥80×80, |yaw| ≤30°, blur ≥50.
 
-Env varlar:
-- `DB_PATH` (default: `embeddings.pkl` server klasöründe)
-- `MATCH_THRESHOLD` (default: 0.4)
-- `MIN_QUALITY_FRAMES` (default: 5)
-- `SESSION_TIMEOUT_S` (default: 30)
-- `PORT` (default: 8000)
+Env varlar: `DB_PATH`, `MATCH_THRESHOLD`, `MIN_QUALITY_FRAMES`, `SESSION_TIMEOUT_S`, `PORT`, `SHARED_SECRET` (opsiyonel API key).
 
-Faz 1 çalıştırma (Mac):
-```bash
-cd /Users/gokturkgocen/Bitirme/face-mac/server
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-python app.py
-# http://0.0.0.0:8000 — Mac IP'siyle ESP'den eriş
-```
+**Gunicorn -w 1 zorunlu:** Session state in-memory per-process. 2+ worker'da burst frame'leri farklı worker'lara dağılır, agregasyon kırılır. Tek worker = doğru.
 
-Faz 1 enrollment:
-```bash
-cd /Users/gokturkgocen/Bitirme/face-mac/server
-source venv/bin/activate
-python enroll.py /path/to/photo.jpg "Ali_Yilmaz_001"
-```
-
-Faz 1 burst simülasyonu (ESP olmadan):
-```bash
-python test_simulate_burst.py /path/to/photo.jpg http://localhost:8000/search
-# beklenen: 10 POST gider, son cevapta match true/false
-```
-
-Faz 2 deploy:
-```bash
-export EC2_HOST="ec2-user@1.2.3.4"
-export KEY_PATH="~/.ssh/taxi-key.pem"
-./deploy_ec2.sh
-```
+EC2'de canlı (Faz 1):
+- `http://18.192.45.175:8000`
+- DB'de Gokturk + Ekin enrollment'ı var
+- `--restart unless-stopped` → instance açık kaldıkça sunucu otonom
 
 ## ESP32 firmware
 
@@ -292,193 +233,144 @@ Dosyalar:
 - `include/config.h` — Wi-Fi creds, server URL, USE_TLS flag, pin/timeout konfig
 - `src/main.cpp` — UART frame protokolü + burst session_id üretimi + HTTP POST + JSON parse + result encoding
 
-Faz 1 ↔ Faz 2 farkı: `config.h` içinde `SERVER_URL` ve `USE_TLS` değişir. Reflash, tamam.
+Faz 1 ↔ Faz 2 farkı: `config.h`'da `SERVER_URL` ve `USE_TLS` değişir. Reflash, tamam.
 
-## Android app v2 (yeni — donanım gelince)
+## Android app v2 (yeni)
 
-Konum: `face-mac/android-v2/` (henüz boş, Android Studio projesi olarak açılacak)
+Konum: `face-mac/android-v2/` (henüz boş, donanım gelince başlayacak)
 
 Stack:
 - Kotlin + Jetpack Compose
-- `BluetoothLeScanner` + `BluetoothGatt` (HM-10 service `0000FFE0-...`, char `0000FFE1-...`)
+- `BluetoothLeScanner` + `BluetoothGatt` (HM-10/HM-19 service `0000FFE0-...`, char `0000FFE1-...`)
 - Foreground Service (BLE persistance)
 - `Intent.ACTION_CALL("tel:155")`
 - Permissions: `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, `CALL_PHONE`, `FOREGROUND_SERVICE`, `POST_NOTIFICATIONS`
 - Min SDK: API 26 (Android 8.0+)
 
-Mevcut iPhone app UI'sini referans al (5 ekran: Login, Home, Logs, Settings, BottomNav). Compose'a port et. Renk paleti: #0A1F44 navy, #FFD43A yellow.
+Mevcut iPhone app (`iphone-app/`) UI'sini referans alacak (5 ekran: Login, Home, Logs, Settings, BottomNav). Compose'a port edilecek. Renk paleti: #0A1F44 navy, #FFD43A yellow.
 
-## v1 — referans (silmedik, atmadık)
+## iPhone app (Plan B)
 
-v1 (Mac webcam + InsightFace yerel + iPhone) artık production yolu değil ama **referans olarak duruyor.** v2 sunucu kodu (`server/`) v1'in `recognize.py` + `db.py` + `embeddings.pkl` kalbinin damıtılmış halidir.
+`/Users/gokturkgocen/Bitirme/iphone-app/` altında. Android engellenirse aktif edilir, **şu an dokunma.** Tez sunumunda Android öncelikli, iPhone fallback olarak duruyor.
 
-### v1 dosyaları (top-level, dokunma)
-- `recognize.py`, `enroll.py`, `enroll_batch.py` — yerel pipeline
-- `db.py`, `embeddings.pkl` — pickle DB (server'ın input source'u olabilir)
-- `antispoof.py` + `antispoof_models/` + `src/` — MiniFASNet (server'da kullanılmıyor; multi-frame liveness onun yerini aldı)
-- `tracker.py`, `liveness_challenge.py` — IoU tracker, mediapipe blink/yaw (server'da kullanılmıyor; tek-shot değil multi-frame agregasyon)
-- `emitter.py`, `event_log.py`, `events.jsonl` — eski USB-serial emitter
-- `evaluation/`, `bench.py`, `config.yaml`, `known_faces/`
-- `venv/` — Python 3.11 venv (`server/venv/`'ı buradan kopyalamak yerine yeni venv aç)
+## v2 İş paketleri
 
-### iphone-app/ (üst dizinde, Plan B)
-**DOKUNMA.** Android engellenirse aktif edilir.
-
-### v1'den server'a damıtma fikri
-v1 kodunda anlamlı parçalar:
-- `enroll.py` mantığı → `server/enroll.py`
-- `recognize.py`'daki face detect + embed çağrıları → `server/recognition.py`
-- `db.py`'daki pickle DB → `server/db.py` (L2 norm + cosine eklendi)
-- Smoothing/median fikri → multi-frame centroid (eşdeğer)
-
-v1 `embeddings.pkl`'in v2'de doğrudan kullanılabilirliği: format aynı (list of (name, embedding) tuples). v1'den 30 kişi enroll ettiysen `embeddings.pkl`'i `server/`'a kopyalayıp kullanabilirsin.
-
-### v1 gotcha'ları (server'a etki edenler dahil)
-- **MiniFASNet input 0-255 float** — `.div(255)` YAPMA. Server kullanmıyor ama v1 referansında.
-- **onnxruntime CoreML provider** RetinaFace'te dinamik shape hatası → **server `CPUExecutionProvider` zorla** (recognition.py'da set edilmiş)
-- **mediapipe ≥ 0.10.22** Mac arm64'de `mp.solutions` kaldırıldı → 0.10.21 pin (server kullanmıyor, sorun değil)
-- **face_crops deque maxlen 5** — v1 stream-time
-- **insightface buffalo_l ilk indirme** ~250 MB tek seferlik. `~/.insightface/models/buffalo_l/` altına iniyor. Faz 2 Dockerfile'ında pre-download var.
-
-## İş paketleri (sıralı)
-
-| Sıra | İş | Çıktı | Donanım gerek? |
-|---|---|---|---|
-| 1 | Server kurulumu (Mac) + venv + requirements | `python app.py` ayağa kalkıyor | Hayır |
-| 2 | v1 `embeddings.pkl`'i server/'a kopyala VEYA `enroll.py` ile yeniden ekle | DB dolu | Hayır |
-| 3 | `test_simulate_burst.py` ile uçtan uca smoke test | 10-frame burst → match döner | Hayır |
-| 4 | BOM siparişi (OV2640, ESP32, HM-10, LED, buzzer, buton, breadboard) | Parça eli | — |
-| 5 | ESP32 PlatformIO build + flash, Wi-Fi STA test | Wi-Fi'a bağlanıyor, log'lar OK | ESP geldi |
-| 6 | ESP32'yi USB-TTL ile besle, sahte UART frame'i gönder, server'a POST atıyor mu | Lokal LAN test | ESP geldi |
-| 7 | STM32 CubeMX projesi: DCMI + UART1 + UART2 + GPIO + EXTI, ETH disable | Pin matrisi temiz, build geçiyor | STM var |
-| 8 | STM firmware: OV2640 SCCB init, DCMI tek frame, UART1 hex dump | UART'ta JPEG SOI/EOI görünüyor | OV2640 geldi |
-| 9 | STM firmware: 5 FPS × 10 frame burst + state machine + LED/buzzer | Buton bas → 10 frame ESP'ye gidiyor | OV2640 + ESP |
-| 10 | HM-10 entegrasyon, MATCH/PANIC frame BLE'de görünür | nRF Connect log | HM-10 |
-| 11 | Android app v2: BLE central + Intent.CALL + foreground service | Uçtan uca 155 araması tetikleniyor | Hepsi |
-| 12 | 20-30 kişi enroll, FAR/FRR ölçümü (rapor 1.3 hedefi) | Doğruluk tablosu | Hepsi |
-| 13 | Test düzeneği: ışık (100/300/600 lx), mesafe (30-120 cm) — Tablo 5.1 | Sonuç tablosu | Hepsi |
-| 14 | Faz 2 cloud deploy (Dockerfile + deploy_ec2.sh) | EC2'de healtcheck OK, ESP yeni URL ile çalışıyor | — |
-| 15 | Tez yazımı + sergi hazırlığı | Final rapor + demo videosu | — |
+| Sıra | İş | Çıktı |
+|---|---|---|
+| 1 | ✅ EC2 sunucu deploy + Faz 1 test | health OK, burst smoke test geçti |
+| 2 | Donanım sipariş + Çankaya | Parça eli |
+| 3 | ESP32 PlatformIO build + flash, Wi-Fi STA test | Wi-Fi'a bağlanıyor, log'lar OK |
+| 4 | ESP32'yi USB-TTL ile besle, sahte UART frame'i gönder | Server'a POST atıyor, RESULT alıyor |
+| 5 | STM32 CubeMX projesi: DCMI + UART1 + UART2 + GPIO + EXTI, ETH disable | Build geçiyor |
+| 6 | STM firmware: OV5640 SCCB init, DCMI tek frame capture | UART'ta JPEG SOI/EOI görünüyor |
+| 7 | STM firmware: 5 FPS × 10 frame burst + state machine + LED/buzzer | Buton bas → 10 frame ESP'ye gidiyor |
+| 8 | HM-10 entegrasyon, MATCH/PANIC frame BLE'de görünür | nRF Connect log |
+| 9 | Android app v2: BLE central + Intent.CALL + foreground service | Uçtan uca 155 araması tetikleniyor |
+| 10 | 20-30 kişi enroll, FAR/FRR ölçümü | Doğruluk tablosu |
+| 11 | Test: ışık (100/300/600 lx), mesafe (30-120 cm) — rapor Tablo 5.1 | Sonuç tablosu |
+| 12 | Tez yazımı + sergi hazırlığı | Final rapor + demo |
 
 ## Kararlar (nihai)
 
 | Karar | Neden | Reddedilen |
 |---|---|---|
-| Kendi sunucumuz + buffalo_l (AWS Rekognition değil) | Modeli biz seçtik, FAR/FRR kontrolümüzde, KVKK netleşir, tezde dolgun savunma | AWS Rekognition (kapalı kutu); Face++ (Çin sunucu); Azure Face (kapatıldı) |
-| Multi-frame burst (10 frame) | Tek-frame kırılgan; multi-frame robust + bedava passive liveness | Tek-shot snapshot |
-| Centroid agregasyon | Embedding ortalaması basit ve sağlam | Majority voting (daha gürültülü) |
-| Pickle DB (PostgreSQL/SQLite değil) | 30 kişi için overkill; v1 ile uyumlu | SQL, vektör DB |
-| Faz 1: Mac LAN, Faz 2: EC2 (sıçrama yok) | Risk azaltma; aynı kod, sadece host değişir | Direkt cloud (donanım gelmeden test riski) |
-| Flask (FastAPI değil) | Tez için yeterli, dependency az, sync model çağrıları zaten thread-safe değil | FastAPI (async ama InsightFace blocking) |
-| ESP32-WROOM (ESP-01 değil) | TLS+cert chain RAM güvenliği | ESP-01 patlama riski |
-| OV2640 + DCMI (USB UVC değil) | Donanım JPEG encoder, STM-merkezli, gecikme düşük | USB UVC + OTG, Wi-Fi IP cam |
-| HM-10 BLE (HC-05 SPP değil) | Komut data tiny, BLE yeter, iPhone bonus uyumu | HC-05 SPP |
-| 921600 UART STM↔ESP (SPI değil) | Basit, debug rahat, 30 KB ~260 ms kabul | SPI ~10 ms ama ekstra kod |
-| Intent.ACTION_CALL (tel://dialer değil) | Otomatik 155 araması, sürücü onayı yok | tel://dialer (iOS sandbox kalıntı) |
-| Buton tetik (kapı switch değil — şimdilik) | Demo için hızlı | Kapı switch'i sahaya çıkarken eklenir |
+| Kendi sunucumuz + buffalo_l | Modeli kontrol ediyoruz, KVKK temiz, FAR/FRR ölçümü tezde dolgun savunma | AWS Rekognition; Face++ (Çin); Azure Face (kapatıldı) |
+| Multi-frame burst 10 frame | Tek-frame kırılgan; multi-frame robust + bedava passive liveness | Tek-shot snapshot |
+| Centroid agregasyon | Embedding ortalaması basit + sağlam | Majority voting (daha gürültülü) |
+| OV5640 (OV2640 yerine) | ST resmi BSP driver, 1-2 gün debug kazancı | OV2640 (driver sıfırdan yazılacaktı) |
+| ESP32-WROOM + STM (ESP-CAM değil) | STM-merkezli mimari için kamera STM'e, ESP sadece Wi-Fi köprüsü | ESP32-CAM (Plan B sigorta) |
+| HM-10/HM-19/AT-09 BLE | Komut data tiny, BLE yeter, GATT FFE0/FFE1 standart | HC-05 (Classic BT, Android 12+ karmaşık) |
+| 921600 UART STM↔ESP | Basit, 30 KB ~260 ms kabul | SPI ~10 ms ama ekstra kod |
+| Intent.ACTION_CALL | Otomatik 155, onay yok | tel://dialer (iOS sandbox kalıntı) |
+| EC2 m7i-flex.large eu-central-1 | Free Plan içinde en güçlü, $200 hediye krediyle ~$23 / 12 gün | t3.small (CPU credit riski), m7i.large (free plan'da yok) |
+| Gunicorn -w 1 | Session state in-memory per-process; multi-worker burst'u kırar | -w 2+ |
 
-## Red flag (yan yola sapıyorum sinyali)
-- "AWS Rekognition'a geri dönelim" → HAYIR, kararlı şekilde sildik
-- "Lambda da olsun yedek" → HAYIR, scope büyür, gerek yok
-- "Yerel + cloud hibrit yapalım" → HAYIR, Faz 1 (Mac LAN) zaten "yerel"in karşılığı
-- "iPhone app'i de Android'le paralel sürdürelim" → arşiv kalsın, tek hedef Android
-- "buffalo_l yerine başka model deneyelim" → HAYIR, FAR/FRR ölçümü tezde değer; yeni model = yeni baseline
-- "MiniFASNet'i geri ekleyelim" → HAYIR, multi-frame centroid varyansı zaten passive liveness, ekstra CPU yükü gereksiz
-- "STM32'de TFLite face recog deneyelim" → HAYIR, F767ZI yetmez, kapsam dışı
-- "JPEG yerine raw RGB gönderelim" → HAYIR, UART boğulur
-- "Pi 4 ekleyelim" → HAYIR, ESP32 yeterli ve bütçe lehine
+## Red flag (yan yola sapma sinyalleri)
+- "AWS Rekognition'a geri dönelim" → HAYIR, silindi
+- "Yerel + cloud hibrit" → Faz 1 zaten "yerel"in karşılığı
+- "iPhone app'i de Android'le paralel sürdürelim" → arşiv, tek hedef Android
+- "buffalo_l yerine başka model" → FAR/FRR ölçümü tezde değer; yeni model = yeni baseline
+- "MiniFASNet'i geri ekleyelim" → multi-frame std zaten passive liveness
+- "STM32'de TFLite face recog" → F767ZI yetmez
+- "JPEG yerine raw RGB" → UART boğulur
+- "Pi 4 ekleyelim" → ESP32 yeterli, bütçe lehine
+- "Gunicorn worker artıralım" → HAYIR, session state per-process
 
-## Gotcha'lar (donanım gelince doğrulanacak)
+## Gotcha'lar
 - **DCMI ↔ ETH pin çakışması** — CubeMX'te ETH disable, DCMI'ye geç
 - **PB7 LD2 mavi LED ↔ DCMI VSYNC** — VSYNC'i PG9'a al
-- **OV2640 SCCB init** — Adafruit / ST CubeF7 örneklerinden adapt et
-- **OV2640 JPEG değişken boyut** — VSYNC end IRQ'da DMA NDTR oku
-- **ESP32 TLS Faz 2** — Let's Encrypt cert için ISRG Root X1, AWS endpoint için Amazon Root CA1. Şu an `setInsecure()` placeholder, prod'da değiştir
+- **OV5640 SCCB init** — ST'nin `STM32Cube_FW_F7/Drivers/BSP/Components/ov5640/`'ından adapt et
+- **OV5640 JPEG değişken boyut** — VSYNC end IRQ'da DMA NDTR oku
+- **ESP32 TLS Faz 2** — Let's Encrypt için ISRG Root X1; AWS endpoint için Amazon Root CA1
 - **Android Foreground Service API 26+** — `NotificationChannel` + ongoing notification zorunlu
 - **Android 12+ BT runtime permission** — `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT` runtime al
 - **155 araması SIM'siz çalışmaz** — test telefonunda SIM olduğunu doğrula
 - **HM-10 default baud 9600** — STM tarafında 9600 ayarla
-- **InsightFace ilk yükleme** — buffalo_l ~250 MB ilk çağrıda iniyor; Mac'te `~/.insightface/models/buffalo_l/`, Docker'da pre-download var
-- **Burst gap timeout** — STM ardışık IMG göndermezse ESP yarım session'ı 3 sn'de düşürüyor; STM tarafında timer ile ardışık capture garanti et
-- **MIN_QUALITY_FRAMES = 5** — 10 frame'in 5'i kalite geçemezse "tekrar tara" dönüyor; threshold çok katıysa düşür
+- **EC2 Public IPv4 dinamik** — instance stop/start ettiğinde IP değişir, Elastic IP'ye almak gerekebilir
+- **Gunicorn -w 1 SABİT** — değiştirme, session state kırılır
 
-## Dosya yapısı (mevcut)
+## Dosya yapısı
 
 ```
-face-mac/                                  # adı eski ama kayıt karışmasın diye dokunma
-├── CLAUDE.md                              # bu dosya (nihai)
+Bitirme/                                  # repo kökü
+├── AGENTS.md                             # Codex/AI agent context (root)
+├── Ekin_Ag_aog_lu_Gelis_imRaporu.pdf     # gelişme raporu, DONDURULDU
+├── taxi-key.pem                          # EC2 SSH key (gitignore'da)
+├── .gitignore
 │
-├── server/                                # ⭐ AKTİF — Flask + InsightFace
-│   ├── app.py                             # Flask: /health, /search (multi-frame burst)
-│   ├── recognition.py                     # InsightFace wrapper, kalite filtresi
-│   ├── db.py                              # Pickle DB, cosine match
-│   ├── enroll.py                          # CLI: kişi ekle
-│   ├── test_simulate_burst.py             # ESP simülatörü
-│   ├── requirements.txt
-│   ├── Dockerfile                         # Faz 2
-│   └── deploy_ec2.sh                      # Faz 2
+├── face-mac/                             # ana proje klasörü
+│   ├── CLAUDE.md                         # bu dosya
+│   ├── embeddings.pkl                    # EC2 DB snapshot (yedek; canlı kopya EC2'de /app/data/)
+│   ├── server/                           # ⭐ Flask + InsightFace (EC2'de canlı)
+│   ├── esp32/                            # ⭐ PlatformIO firmware
+│   ├── stm32/                            # ⭐ CubeIDE (donanım gelince)
+│   └── android-v2/                       # ⭐ Android Studio (donanım gelince)
 │
-├── esp32/                                 # ⭐ AKTİF — PlatformIO
-│   ├── platformio.ini
-│   ├── include/config.h                   # Wi-Fi, server URL, USE_TLS
-│   └── src/main.cpp                       # UART frame, burst session, HTTP POST
-│
-├── stm32/                                 # ⭐ AKTİF — CubeIDE (donanım gelince)
-│   └── _v1_archive/                       # eski Mac+iPhone bridge firmware
-│
-├── android-v2/                            # ⭐ AKTİF — Android Studio (donanım gelince)
-│
-├── android/                               # v1 Kotlin iskeleti, referans
-│
-│   ─── v1 referans (dokunma) ──────────────────
-├── recognize.py                           # v1 yerel pipeline
-├── enroll.py, enroll_batch.py
-├── db.py, embeddings.pkl                  # ⚠️ embeddings.pkl server/'a kopyalanabilir
-├── antispoof.py, antispoof_models/, src/
-├── tracker.py, liveness_challenge.py
-├── emitter.py, event_log.py, events.jsonl
-├── bench.py, evaluation/
-├── config.yaml, requirements.txt
-├── known_faces/
-└── venv/                                  # v1 venv
+└── iphone-app/                           # PLAN B, DOKUNMA
 ```
 
-> `iphone-app/` (üst dizinde, repo kökünde) → Plan B, DOKUNMA.
-
-## Hızlı kullanım (özet)
+## Hızlı kullanım
 
 ```bash
-# Server kurulumu (Mac, Faz 1)
+# Sunucu Mac'te ayağa kaldırmak (yerel test/dev)
 cd /Users/gokturkgocen/Bitirme/face-mac/server
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-
-# Enroll
-python enroll.py /path/to/test.jpg "Test_001"
-
-# Server başlat
 python app.py
-# → 0.0.0.0:8000
 
-# Smoke test (başka terminalde)
-python test_simulate_burst.py /path/to/test.jpg http://localhost:8000/search
-# beklenen: 10 POST, son cevapta match=true name=Test_001
+# Enroll (yerel veya EC2'de)
+python enroll.py /path/to/photo.jpg "Person_Name"
 
-# Faz 2 deploy
-export EC2_HOST="ec2-user@1.2.3.4"
-export KEY_PATH="~/.ssh/taxi-key.pem"
+# EC2 sunucu test (smoke)
+curl http://18.192.45.175:8000/health
+python test_simulate_burst.py /path/to/test.jpg http://18.192.45.175:8000/search
+
+# EC2'ye SSH
+ssh -i /Users/gokturkgocen/Bitirme/taxi-key.pem ec2-user@18.192.45.175
+
+# EC2'de enroll
+scp -i /Users/gokturkgocen/Bitirme/taxi-key.pem photo.jpg ec2-user@18.192.45.175:~/
+ssh -i /Users/gokturkgocen/Bitirme/taxi-key.pem ec2-user@18.192.45.175 \
+    'docker cp ~/photo.jpg taxi-server:/tmp/ && \
+     docker exec taxi-server python enroll.py /tmp/photo.jpg "Name_001"'
+
+# EC2 deploy (Faz 2)
+cd /Users/gokturkgocen/Bitirme/face-mac/server
+export EC2_HOST="ec2-user@18.192.45.175"
+export KEY_PATH="/Users/gokturkgocen/Bitirme/taxi-key.pem"
 ./deploy_ec2.sh
 
 # ESP32 build + flash
 cd /Users/gokturkgocen/Bitirme/face-mac/esp32
-# config.h içinde SERVER_URL ve Wi-Fi ayarla
+# config.h'da SERVER_URL ve Wi-Fi ayarla
 pio run -t upload
 pio device monitor
 ```
 
 ## İletişim notu
-- Türkçe konuş (bu projede), kısa ve direkt
+- Türkçe konuş, kısa ve direkt
 - Terminal komutu verirken **full path** ver
 - Onay almadan büyük mimari sapma yapma — mimari kilitli
 - Emin olmadığın API/parametreyi araştır, varsayım yapma
-- v1 ve `iphone-app/` dosyalarına dokunma
+- `iphone-app/` ve `taxi-key.pem`'e dokunma
+- Yapılan her kod değişikliği commit + push edilmeli (Codex kuralı)
