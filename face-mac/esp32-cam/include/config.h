@@ -47,3 +47,6 @@
 #define CAM_PIN_VSYNC    25
 #define CAM_PIN_HREF     23
 #define CAM_PIN_PCLK     22
+
+/* Onboard white flash LED for low-light capture. Bright — use briefly. */
+#define CAM_PIN_LED_FLASH  4

@@ -22,11 +22,15 @@
 
 static HardwareSerial StmUart(STM_UART_NUM);
 
-/* ─── line-buffered RX from STM32 ──────────────────────────────────────── */
-static String rx_line;
+/* ─── line-buffered RX ─────────────────────────────────────────────────── */
+static String rx_line;     /* UART2 from STM32 */
+static String usb_line;    /* USB CDC for manual testing */
 
+/* Send to STM32 over UART2 AND echo to USB so we can watch live during tests. */
 static void stm_send(const char *msg) {
     StmUart.print(msg);
+    Serial.print("[->stm] ");
+    Serial.print(msg);
 }
 
 /* ─── camera init ──────────────────────────────────────────────────────── */
@@ -130,13 +134,21 @@ static void post_frame(camera_fb_t *fb,
     if (doc["status"].is<const char *>() &&
         strcmp(doc["status"], "continue") == 0) {
         out.final = false;
+        bool q = doc["quality_ok_this_frame"] | false;
+        Serial.printf("[CAM]   quality_ok=%d\n", q ? 1 : 0);
         return;
     }
-    /* Final frame response has match/name/similarity */
+    /* Final frame response has match/name/similarity + frames_used */
     out.final = true;
     out.match = doc["match"] | false;
     strncpy(out.name, doc["name"] | "", sizeof(out.name) - 1);
     out.similarity = doc["similarity"] | 0.0f;
+    int frames_used = doc["frames_used"] | 0;
+    int frames_total = doc["frames_total"] | 0;
+    const char *reason = doc["reason"] | "";
+    Serial.printf("[CAM]   final: match=%d name=%s sim=%.3f used=%d/%d reason=%s\n",
+                  out.match ? 1 : 0, out.name, out.similarity,
+                  frames_used, frames_total, reason);
 }
 
 /* ─── one full 10-frame burst ──────────────────────────────────────────── */
@@ -147,6 +159,15 @@ static void run_burst(void) {
         stm_send("ERR:no_wifi\n");
         return;
     }
+
+    /* Turn the onboard flash LED on for the duration of the burst so the
+     * sensor has decent light. Let auto-exposure settle for one throwaway
+     * frame before the real burst starts. */
+    digitalWrite(CAM_PIN_LED_FLASH, HIGH);
+    delay(150);
+    camera_fb_t *warm = esp_camera_fb_get();
+    if (warm) esp_camera_fb_return(warm);
+    delay(150);
 
     char session_id[40];
     {
@@ -197,6 +218,8 @@ static void run_burst(void) {
         }
     }
 
+    digitalWrite(CAM_PIN_LED_FLASH, LOW);
+
     if (!final_received) {
         stm_send("ERR:no_final\n");
         return;
@@ -215,6 +238,9 @@ static void run_burst(void) {
 void setup(void) {
     Serial.begin(115200);
     StmUart.begin(STM_UART_BAUD, SERIAL_8N1, STM_UART_RX_PIN, STM_UART_TX_PIN);
+
+    pinMode(CAM_PIN_LED_FLASH, OUTPUT);
+    digitalWrite(CAM_PIN_LED_FLASH, LOW);
 
     Serial.println("\n[CAM] boot");
 
@@ -250,7 +276,7 @@ void loop(void) {
         last_hb = millis();
     }
 
-    /* consume UART2 line by line */
+    /* consume UART2 (from STM32) line by line */
     while (StmUart.available()) {
         char c = (char)StmUart.read();
         if (c == '\n' || c == '\r') {
@@ -258,15 +284,26 @@ void loop(void) {
                 String cmd = rx_line;
                 rx_line = "";
                 Serial.printf("[CAM] stm: %s\n", cmd.c_str());
-
-                if (cmd == "CAPTURE") {
-                    run_burst();
-                } else if (cmd == "HB") {
-                    /* ignore, ack via periodic stm_send */
-                }
+                if (cmd == "CAPTURE") run_burst();
             }
         } else if (rx_line.length() < 120) {
             rx_line += c;
+        }
+    }
+
+    /* USB CDC for manual testing — type CAPTURE<enter> in the serial monitor
+     * to trigger a burst without an STM32 attached. */
+    while (Serial.available()) {
+        char c = (char)Serial.read();
+        if (c == '\n' || c == '\r') {
+            if (usb_line.length() > 0) {
+                String cmd = usb_line;
+                usb_line = "";
+                Serial.printf("[CAM] usb: %s\n", cmd.c_str());
+                if (cmd == "CAPTURE") run_burst();
+            }
+        } else if (usb_line.length() < 120) {
+            usb_line += c;
         }
     }
 }

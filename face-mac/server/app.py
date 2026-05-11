@@ -79,6 +79,20 @@ def search():
     face = recognizer.best_face(jpeg)
     quality_ok = bool(face and recognizer.is_quality(face))
 
+    # Diagnostic logging — show why each frame did or didn't pass quality.
+    if face is None:
+        print(f"[search] sid={sid[:8]} frame={idx}/{total} NO_FACE size={len(jpeg)}",
+              flush=True)
+    else:
+        x1, y1, x2, y2 = face["bbox"]
+        area = (x2 - x1) * (y2 - y1)
+        print(
+            f"[search] sid={sid[:8]} frame={idx}/{total} "
+            f"det={face['det_score']:.2f} area={area} "
+            f"yaw={face['yaw']:.1f} blur={face['blur']:.1f} ok={quality_ok}",
+            flush=True,
+        )
+
     with _lock:
         session = _sessions.setdefault(sid, {"created": time.time(), "faces": []})
         if quality_ok:
