@@ -102,12 +102,12 @@ int main(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
-  /* CubeMX-generated SystemClock_Config() runs HSI 16 MHz only. We override
-   * with HSE bypass + PLL → 216 MHz immediately after, so all subsequent
-   * peripheral inits pick up the higher clock. Keeping the generated call
-   * means CubeMX can regenerate without breaking us. */
+  /* Temporarily skip the 216 MHz override to isolate whether HSE bypass is
+   * the cause of the garbled UART output. HSI 16 MHz from CubeMX should
+   * give clean 9600 baud on USART3. If this works, the 216 MHz function
+   * has a problem we need to fix separately. */
   SystemClock_Config();
-  SystemClock_Config_216MHz();
+  /* SystemClock_Config_216MHz();  -- DISABLED FOR DIAG */
 
   /* USER CODE BEGIN SysInit */
 
