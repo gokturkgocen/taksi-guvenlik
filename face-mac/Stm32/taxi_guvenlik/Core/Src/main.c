@@ -126,10 +126,11 @@ int main(void)
   /* CubeMX initialized USART1/2/3 at 115200. We need:
    *   USART1 (ESP32):  921600
    *   USART2 (HM-10):  9600
-   *   USART3 (printf): 115200  (default OK)
-   * Reconfigure to avoid having to keep CubeMX UI baud rates synced. */
+   *   USART3 (printf): TEMPORARILY 9600 for diagnostic — drop to easy baud
+   *                    until VCP path is proven. */
   uart_set_baud(&huart1, 921600);
   uart_set_baud(&huart2, 9600);
+  uart_set_baud(&huart3, 9600);
 
   /* Configure onboard LD2 blue LED (PB7) for heartbeat — visible without
    * external wiring. CubeMX didn't map PB7 since we used it transiently for
@@ -186,8 +187,13 @@ int main(void)
      * If the ST-LINK VCP path is alive, we should see a steady stream of
      * "tick N\r\n" lines on /dev/tty.usbmodem1103 at 115200. */
     static uint32_t tick = 0;
-    char buf[32];
-    int n = snprintf(buf, sizeof(buf), "tick %lu\r\n", tick++);
+    char buf[80];
+    int n = snprintf(buf, sizeof(buf),
+                     "tick %lu hclk=%lu pclk1=%lu pclk2=%lu\r\n",
+                     tick++,
+                     HAL_RCC_GetHCLKFreq(),
+                     HAL_RCC_GetPCLK1Freq(),
+                     HAL_RCC_GetPCLK2Freq());
     HAL_UART_Transmit(&huart3, (uint8_t*)buf, n, 200);
 
     HAL_Delay(500);
