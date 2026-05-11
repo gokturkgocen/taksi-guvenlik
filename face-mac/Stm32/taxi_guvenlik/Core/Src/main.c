@@ -143,10 +143,17 @@ int main(void)
       HAL_GPIO_Init(GPIOB, &gp);
   }
 
+  /* Direct UART transmit bypasses printf/newlib syscalls so we can tell whether
+   * the USART3 → ST-LINK VCP path is alive independent of stdio config. */
+  {
+      const char hello[] = "\r\n[STM] boot (direct HAL)\r\n";
+      HAL_UART_Transmit(&huart3, (uint8_t*)hello, sizeof(hello)-1, 200);
+  }
+
   /* Force stdout unbuffered so each printf goes out immediately via USART3. */
   setvbuf(stdout, NULL, _IONBF, 0);
 
-  printf("\r\n[STM] boot, HCLK=%lu Hz\r\n", HAL_RCC_GetHCLKFreq());
+  printf("[STM] boot (printf), HCLK=%lu Hz\r\n", HAL_RCC_GetHCLKFreq());
 
   /* Power-cycle OV5640 (PWDN low = enabled, RESET pulse). */
   HAL_GPIO_WritePin(CAM_PWDN_GPIO_Port, CAM_PWDN_Pin, GPIO_PIN_RESET);
