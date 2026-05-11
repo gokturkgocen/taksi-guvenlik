@@ -131,6 +131,21 @@ int main(void)
   uart_set_baud(&huart1, 921600);
   uart_set_baud(&huart2, 9600);
 
+  /* Configure onboard LD2 blue LED (PB7) for heartbeat — visible without
+   * external wiring. CubeMX didn't map PB7 since we used it transiently for
+   * DCMI VSYNC and then freed it. */
+  {
+      GPIO_InitTypeDef gp = {0};
+      gp.Pin = GPIO_PIN_7;
+      gp.Mode = GPIO_MODE_OUTPUT_PP;
+      gp.Pull = GPIO_NOPULL;
+      gp.Speed = GPIO_SPEED_FREQ_LOW;
+      HAL_GPIO_Init(GPIOB, &gp);
+  }
+
+  /* Force stdout unbuffered so each printf goes out immediately via USART3. */
+  setvbuf(stdout, NULL, _IONBF, 0);
+
   printf("\r\n[STM] boot, HCLK=%lu Hz\r\n", HAL_RCC_GetHCLKFreq());
 
   /* Power-cycle OV5640 (PWDN low = enabled, RESET pulse). */
@@ -156,7 +171,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* Yellow LED heartbeat ~1 Hz so we can tell the firmware is alive. */
+    /* LD2 onboard blue LED heartbeat ~1 Hz (PB7). Visible without any
+     * external wiring. PD12 LED_YELLOW is also toggled for users who DO
+     * wire an external yellow LED. */
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
     HAL_GPIO_TogglePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin);
     HAL_Delay(500);
     /* USER CODE END WHILE */
