@@ -102,12 +102,8 @@ int main(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
-  /* Temporarily skip the 216 MHz override to isolate whether HSE bypass is
-   * the cause of the garbled UART output. HSI 16 MHz from CubeMX should
-   * give clean 9600 baud on USART3. If this works, the 216 MHz function
-   * has a problem we need to fix separately. */
-  SystemClock_Config();
-  /* SystemClock_Config_216MHz();  -- DISABLED FOR DIAG */
+  SystemClock_Config();           /* CubeMX baseline (HSI 16 MHz, no PLL) */
+  SystemClock_Config_216MHz();    /* HSI × PLL → 216 MHz */
 
   /* USER CODE BEGIN SysInit */
 
@@ -123,14 +119,12 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  /* CubeMX initialized USART1/2/3 at 115200. We need:
-   *   USART1 (ESP32):  921600
-   *   USART2 (HM-10):  9600
-   *   USART3 (printf): TEMPORARILY 9600 for diagnostic — drop to easy baud
-   *                    until VCP path is proven. */
+  /* USART baud overrides — CubeMX hard-codes 115200 across the board, we
+   * want USART1→ESP32 at 921600 and USART2→HM-10 at 9600. USART3 stays at
+   * 115200 for ST-LINK VCP printf. */
   uart_set_baud(&huart1, 921600);
   uart_set_baud(&huart2, 9600);
-  uart_set_baud(&huart3, 9600);
+  uart_set_baud(&huart3, 115200);
 
   /* Configure onboard LD2 blue LED (PB7) for heartbeat — visible without
    * external wiring. CubeMX didn't map PB7 since we used it transiently for
@@ -517,13 +511,18 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-/* HSE bypass + PLL → 216 MHz HCLK with overdrive.
+/* HSI 16 MHz + PLL → 216 MHz HCLK with overdrive.
  *
- * NUCLEO-F767ZI feeds an 8 MHz MCO from the ST-LINK MCU into PH0/HSE_IN,
- * so we set OscillatorType=HSE with HSEState=BYPASS. PLL_M=8, PLL_N=432,
- * PLL_P=2 → SYSCLK = 432 MHz / 2 = 216 MHz. APB1 divides by 4 (54 MHz max),
- * APB2 by 2 (108 MHz max). Flash latency 7 wait states is required at 216 MHz
- * on F767. Overdrive must be enabled before switching to PLL.
+ * Previous attempt used HSE bypass off NUCLEO's 8 MHz MCO. That worked
+ * electrically but HAL's HSE_VALUE macro is hard-coded to 25 MHz in
+ * stm32f7xx_hal_conf.h, so HAL_RCC_GetSysClockFreq() returned ~675 MHz and
+ * every BRR/timer calculation derived from SystemCoreClock was off by ~3x.
+ * Switching to HSI as the PLL source removes that dependency entirely —
+ * HSI_VALUE matches the hardware and clock calculations stay correct.
+ *
+ * HSI = 16 MHz, PLLM = 16 → 1 MHz reference, PLLN = 432 → 432 MHz VCO,
+ * PLLP = 2 → SYSCLK = 216 MHz. PLLQ = 9 → 48 MHz (USB OTG, unused).
+ * APB1 = HCLK/4 = 54 MHz, APB2 = HCLK/2 = 108 MHz, Flash 7 wait states.
  */
 static void SystemClock_Config_216MHz(void) {
     RCC_OscInitTypeDef osc = {0};
@@ -532,14 +531,15 @@ static void SystemClock_Config_216MHz(void) {
     __HAL_RCC_PWR_CLK_ENABLE();
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-    osc.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-    osc.HSEState = RCC_HSE_BYPASS;
+    osc.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    osc.HSIState = RCC_HSI_ON;
+    osc.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
     osc.PLL.PLLState = RCC_PLL_ON;
-    osc.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    osc.PLL.PLLM = 8;
+    osc.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+    osc.PLL.PLLM = 16;
     osc.PLL.PLLN = 432;
     osc.PLL.PLLP = RCC_PLLP_DIV2;
-    osc.PLL.PLLQ = 9;   /* 48 MHz for USB, unused but valid */
+    osc.PLL.PLLQ = 9;
     if (HAL_RCC_OscConfig(&osc) != HAL_OK) {
         Error_Handler();
     }
@@ -556,6 +556,8 @@ static void SystemClock_Config_216MHz(void) {
     if (HAL_RCC_ClockConfig(&clk, FLASH_LATENCY_7) != HAL_OK) {
         Error_Handler();
     }
+
+    SystemCoreClockUpdate();  /* re-derive SystemCoreClock from RCC registers */
 }
 
 /* Re-init a UART with a different baud rate without touching anything else.
