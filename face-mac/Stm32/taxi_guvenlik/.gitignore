@@ -7,6 +7,3 @@ Release/
 *.list
 *.o
 *.d
-.metadata/
-.settings/
-.cproject.bak
