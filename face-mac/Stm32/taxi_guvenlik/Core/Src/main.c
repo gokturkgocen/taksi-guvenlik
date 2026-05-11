@@ -178,11 +178,18 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* LD2 onboard blue LED heartbeat ~1 Hz (PB7). Visible without any
-     * external wiring. PD12 LED_YELLOW is also toggled for users who DO
-     * wire an external yellow LED. */
+    /* LD2 onboard blue LED heartbeat ~1 Hz (PB7). */
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
     HAL_GPIO_TogglePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin);
+
+    /* Continuously spam USART3 so we can rule out one-shot timing issues.
+     * If the ST-LINK VCP path is alive, we should see a steady stream of
+     * "tick N\r\n" lines on /dev/tty.usbmodem1103 at 115200. */
+    static uint32_t tick = 0;
+    char buf[32];
+    int n = snprintf(buf, sizeof(buf), "tick %lu\r\n", tick++);
+    HAL_UART_Transmit(&huart3, (uint8_t*)buf, n, 200);
+
     HAL_Delay(500);
     /* USER CODE END WHILE */
 
