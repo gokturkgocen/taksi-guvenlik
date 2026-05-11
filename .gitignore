@@ -46,6 +46,13 @@ Release/
 *.map
 *.list
 
+# CubeIDE / Eclipse workspace state (machine-specific)
+.metadata/
+.settings/
+.cproject.bak
+*.launch
+RemoteSystemsTempFiles/
+
 # Server runtime data
 face-mac/server/venv/
 face-mac/server/data/
