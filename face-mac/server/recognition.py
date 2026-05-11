@@ -40,7 +40,7 @@ class Recognizer:
         min_det_score: float = 0.7,
         min_area: int = 80 * 80,
         max_yaw_deg: float = 30.0,
-        min_blur: float = 50.0,
+        min_blur: float = 10.0,
     ) -> bool:
         if face["det_score"] < min_det_score:
             return False
