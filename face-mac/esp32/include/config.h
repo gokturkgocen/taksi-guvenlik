@@ -1,13 +1,13 @@
 #pragma once
 
 // ───────────────────────── Wi-Fi ─────────────────────────
-#define WIFI_SSID      "PHONE_HOTSPOT_SSID"
-#define WIFI_PASSWORD  "phone_hotspot_password"
+#define WIFI_SSID      "GG"
+#define WIFI_PASSWORD  "GGocen2690"
 
 // ─────────────────────── Server URL ───────────────────────
 // Phase 1 (Mac LAN, HTTP): "http://192.168.x.x:8000/search"
 // Phase 2 (Cloud, HTTPS):  "https://taxi.your-domain.com/search"
-#define SERVER_URL     "http://192.168.1.50:8000/search"
+#define SERVER_URL     "http://18.192.45.175:8000/search"
 
 // 0 = HTTP (Phase 1, LAN), 1 = HTTPS (Phase 2, cloud)
 #define USE_TLS        0
