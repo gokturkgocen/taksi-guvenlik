@@ -163,12 +163,16 @@ DCMI'ye bağlanacak senaryosu Plan B'ye geçişle birlikte düşmüştür.
 
 \subsection{Yazılım Mimarisi}
 
-STM32 firmware'i, taşınabilir C99 olarak yazılmış bir
-\textbf{durum makinesi modülü} etrafında düzenlenmiştir. Modül,
-HAL'a doğrudan bağımlı değildir; tüm donanım etkileşimleri bir
-callback vtable üzerinden gerçekleşir:
+STM32 firmware'i iki katmanlı geliştirilmiştir.
 
-\begin{lstlisting}[language=C, caption={State machine callback vtable.}, label=lst:cb]
+\paragraph{(i) Tasarım doğrulama katmanı.}
+Durum makinesi mantığı, taşınabilir C99 olarak yazılmış ayrı bir
+\textbf{referans modül} (\texttt{state\_machine.c/.h}) hâlinde ifade
+edilmiş ve PC üzerinde birim testleriyle doğrulanmıştır. Modül, HAL'a
+doğrudan bağımlı değildir; tüm donanım etkileşimleri bir callback
+vtable üzerinden gerçekleşir:
+
+\begin{lstlisting}[language=C, caption={State machine referans modülünün callback vtable'ı.}, label=lst:cb]
 typedef struct {
     void     (*set_led)(sm_led_t led, bool on);
     void     (*set_buzzer)(bool on);
@@ -178,12 +182,24 @@ typedef struct {
 } sm_callbacks_t;
 \end{lstlisting}
 
-Bu soyutlama sayesinde modülün davranışı, donanım olmadan PC üzerinde
-test edilebilmektedir. Tezin yazıldığı anda, modül için 12 ayrı senaryo
-gcc ile derlenen bir host-side test harness'ında deterministik olarak
-geçmiştir (\Cref{tab:host-tests}). Bu testler donanım gelmeden önce
-yazılmış; donanım üzerinde flash etmenin yarattığı geliştirme döngüsünü
-büyük ölçüde kısaltmıştır.
+Bu soyutlama sayesinde modülün davranışı donanım olmadan
+gcc/clang ile derlenen bir host-side test koşumunda deterministik olarak
+doğrulanmıştır. \Cref{tab:host-tests} kapsanan 12 senaryoyu özetler.
+
+\paragraph{(ii) Embedded gerçekleme.}
+Tasarım doğrulandıktan sonra, \texttt{main.c} dosyasında aynı durum
+makinesi mantığı CubeMX'in yeniden ürettiği \emph{USER CODE} bölgelerine
+\emph{inline} edilmiştir. Bu pratik tercih iki nedenden ötürü
+yapılmıştır: (i) CubeMX yenileme süreci ile çakışma riskini azaltmak,
+(ii) embedded tarafta UART RX kesme rutininin ve EXTI callback'lerinin
+state machine eventleri ile aynı dosyada yaşamasının okunabilirliği
+artırması. Embedded ve referans uygulamalar arasındaki davranış birebir
+aynıdır; tek farklılık hold timer sabitleri (NOMATCH 1\,s vs.\ 2\,s
+gibi), proje yürüyüşü sırasında pratiğe göre kalibre edilmiştir.
+
+Bu iki katmanlı yaklaşım, donanım olmadan tasarım hatalarını yakalama
+ve donanım üzerinde flash--flash döngülerini en aza indirme açısından
+proje takvimini önemli ölçüde rahatlatmıştır.
 
 \begin{table}[h!]
 \centering
@@ -210,24 +226,45 @@ oversized name             & 32 karakterden uzun isimde taşma yok\\
 \end{tabular}
 \end{table}
 
-\subsection{Embedded Uygulama}
+\subsection{Embedded Uygulama --- main.c}
 
-main.c içinde modül başlatılırken vtable HAL fonksiyonlarına bağlanır.
-\Cref{lst:adapter}, bağlama kalıbının tipik bir örneğini göstermektedir.
+\texttt{main.c} dosyasında durum makinesi mantığı USER CODE bölgelerine
+inline yazılmıştır. \Cref{lst:adapter} temel parçaları gösterir.
 
-\begin{lstlisting}[language=C, caption={CubeIDE main.c içerisindeki adapter kalıbı.}, label=lst:adapter]
-static void on_set_led(sm_led_t led, bool on) {
-    GPIO_PinState s = on ? GPIO_PIN_SET : GPIO_PIN_RESET;
-    switch (led) {
-        case SM_LED_GREEN: HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, s); break;
-        case SM_LED_AMBER: HAL_GPIO_WritePin(LED_AMBER_GPIO_Port, LED_AMBER_Pin, s); break;
-        case SM_LED_RED:   HAL_GPIO_WritePin(LED_RED_GPIO_Port,   LED_RED_Pin,   s); break;
+\begin{lstlisting}[language=C, caption={CubeIDE main.c içerisindeki durum makinesi gerçeklemesi (özet).}, label=lst:adapter]
+typedef enum {
+    STATE_IDLE = 0, STATE_SCANNING, STATE_MATCH,
+    STATE_NOMATCH,  STATE_PANIC,    STATE_NETERR,
+} app_state_t;
+
+static volatile app_state_t app_state = STATE_IDLE;
+static uint32_t state_entered_ms = 0;
+
+static void apply_state_outputs(app_state_t s) {
+    /* tüm LED + buzzer kapat, sonra duruma göre aç */
+    HAL_GPIO_WritePin(LED_GREEN_GPIO_Port,  LED_GREEN_Pin,  GPIO_PIN_RESET);
+    /* ... */
+    switch (s) {
+        case STATE_IDLE: HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET); break;
+        case STATE_MATCH: case STATE_PANIC:
+            HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(BUZZER_GPIO_Port,  BUZZER_Pin,  GPIO_PIN_SET);
+            break;
+        /* ... */
     }
 }
-static void on_uart_tx(UART_HandleTypeDef *u, const char *line) {
-    HAL_UART_Transmit(u, (uint8_t *)line, strlen(line), 100);
+
+void HAL_GPIO_EXTI_Callback(uint16_t pin) {
+    if (pin == BTN_SCAN_Pin)  flag_tara  = true;
+    if (pin == BTN_PANIC_Pin) flag_panic = true;
 }
 \end{lstlisting}
+
+UART1 RX yolu (ESP'den gelen \texttt{RESULT:..}/\texttt{ERR:..}/\texttt{HB}
+satırları), bir bayt-bayt kesme rutini ile \texttt{\textbackslash n}'a kadar bir
+satır tamponuna birikir; ana döngüde tamamlanan satırlar
+\texttt{process\_cam\_line()} ile parse edilerek MATCH/NOMATCH/NETERR
+geçişlerini tetikler.
 
 \section{Android Uygulaması: TaxiGuard v2}
 

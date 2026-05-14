@@ -83,27 +83,35 @@ Aynı prosedür: USB-TTL → PD5/PD6, baud 9600. Mesaj: `STM-UART2-OK\n`.
 
 ---
 
-## Adım 3 — STM32 state machine entegrasyonu
+## Adım 3 — STM32 firmware doğrulama (zaten yazılı)
 
-**Amaç:** Zaten yazılı olan `state_machine.c` modülünü main.c'ye
-bağlamak.
+**Amaç:** `main.c` içindeki inline durum makinesinin Adım 1 ve 2'de
+bağlanan çevre birimleriyle uçtan uca çalıştığını doğrulamak.
 
-### Adımlar
+> **Not.** state machine + buton EXTI + UART1 RX line buffer + UART2 TX
+> + LED/buzzer kontrolü `main.c` içine zaten yazılı. Kod değişikliği
+> gerektirmez; sadece flash + test.
 
-1. `Core/Src/main.c` içine `#include "state_machine.h"` ekle.
-2. `face-mac/Stm32/host_tests/README.md`'deki adapter kalıbını kopyala
-   (`on_set_led`, `on_set_buzzer`, `on_uart1_tx`, `on_uart2_tx`, `on_now`).
-3. `MX_GPIO_Init()` sonrasında `sm_init(&cb);` çağır.
-4. Ana döngüde `sm_tick()`'i 100ms'de bir çağır.
-5. EXTI callback'lerinde `sm_handle_event(SM_EV_TARA_PRESS, NULL)` ve
-   `SM_EV_PANIC_PRESS`.
+### Test akışı
+
+1. STM32 board'unu bilgisayara bağla, CubeIDE üzerinden flash et.
+2. ST-LINK VCP (USART3, 115200) üzerinden seri monitör aç:
+   `screen /dev/tty.usbmodemXXXX 115200`. Açılış log'unda
+   `[STM] boot, HCLK=216000000 Hz, plan-B (esp-cam slave)` görünmeli.
+3. TARA butonuna (B1 USER) bas → log'da `[STM] TARA pressed,
+   requesting capture` ve `[STM] -> SCANNING` satırları gelmeli.
+4. ESP-CAM henüz bağlı değilse 15 saniye sonra `[STM] scan timeout`
+   ve `[STM] -> NETERR` görmelisin.
+5. PANİK butonuna bas → `[STM] PANIC button pressed` ve
+   `[STM] -> PANIC` log'u.
 
 ### Başarı kriteri
 
-- [ ] Kart açıldığında yeşil LED sabit yanıyor
-- [ ] TARA → sarı LED + UART1'e `CAPTURE\n` + UART2'ye `SCANNING\n`
-- [ ] 15 saniye sonra (cevap gelmediği için) NETERR durumu, sarı LED blink
-- [ ] PANİK → kırmızı LED + buzzer + UART2'ye `PANIC\n`
+- [ ] Kart açıldığında yeşil LED sabit yanıyor (LD1/PB0)
+- [ ] TARA → sarı LED + UART1 TX hattında `CAPTURE\n` (USB-TTL ile gör)
+- [ ] TARA + 15 saniye → NETERR (sarı + kırmızı sabit yanıyor)
+- [ ] PANİK → kırmızı LED + buzzer + UART2 TX'te `PANIC\n`
+- [ ] Onboard mavi LED (LD2/PB7) yarım saniye periyotla blink (heartbeat)
 
 ---
 
