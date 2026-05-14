@@ -83,17 +83,21 @@ class ProbeResult:
 # -------------------------------------------------------------------------
 
 
-def send_burst(server: str, jpeg: bytes, frames: int, timeout: float = 30.0) -> dict:
+def send_burst(server: str, jpeg: bytes, frames: int, timeout: float = 30.0,
+               shared_secret: str = "") -> dict:
     """Send the same JPEG as an N-frame burst (matches ESP32-CAM behaviour
     when filming a still subject). Returns the parsed final-frame JSON."""
     sid = str(uuid.uuid4())
     last: dict = {}
+    base_headers = {"Content-Type": "application/octet-stream"}
+    if shared_secret:
+        base_headers["X-Shared-Secret"] = shared_secret
     for i in range(1, frames + 1):
         r = requests.post(
             f"{server.rstrip('/')}/search",
             data=jpeg,
             headers={
-                "Content-Type": "application/octet-stream",
+                **base_headers,
                 "X-Session-Id": sid,
                 "X-Frame-Index": str(i),
                 "X-Frame-Total": str(frames),
@@ -121,6 +125,7 @@ def run_probes(
     server: str,
     frames: int,
     sleep_s: float = 0.0,
+    shared_secret: str = "",
 ) -> list[ProbeResult]:
     """Send every probe in the dataset to the server, return raw results."""
     probes = collect_probes(dataset_root)
@@ -132,7 +137,8 @@ def run_probes(
         try:
             with open(img_path, "rb") as f:
                 jpeg = f.read()
-            final = send_burst(server, jpeg, frames=frames)
+            final = send_burst(server, jpeg, frames=frames,
+                               shared_secret=shared_secret)
         except Exception as e:                            # noqa: BLE001
             results.append(ProbeResult(
                 image_path=str(img_path),
@@ -326,6 +332,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="Max acceptable FAR when choosing the operating point")
     p.add_argument("--out", type=Path, default=Path("results/probes.csv"),
                    help="Output CSV for per-probe rows")
+    p.add_argument("--shared-secret", default=os.environ.get("SHARED_SECRET", ""),
+                   help="Auth token, sent as X-Shared-Secret (default: $SHARED_SECRET)")
     return p.parse_args(argv)
 
 
@@ -347,7 +355,8 @@ def main(argv: list[str]) -> int:
         print(f"server unreachable at {args.server}: {e}", file=sys.stderr)
         return 1
 
-    results = run_probes(args.dataset, gallery, args.server, args.frames, args.sleep)
+    results = run_probes(args.dataset, gallery, args.server, args.frames,
+                         args.sleep, shared_secret=args.shared_secret)
     write_probe_csv(results, args.out)
     points = sweep_thresholds(results)
     sweep_path = args.out.with_name(args.out.stem + "_sweep.csv")
