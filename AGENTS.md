@@ -138,10 +138,36 @@ Bitirme/
 - Server logs: `docker logs --tail 20 taxi-server`
 - DB: `/home/ec2-user/data/embeddings.pkl` (Gokturk + Ekin)
 
-## Codex/Claude/diğer agent için son not
-- **Detaylar `face-mac/CLAUDE.md`'de.** Pin plan, protokol detayları, agregasyon mantığı, gotcha'lar, kullanım komutları orada.
-- Mimari kilitli — "Red flag" listesini iki kere oku.
-- `iphone-app/` aktif (DOKUNULABİLİR), `taxi-key.pem` DOKUNMA.
-- Geliştirme raporu PDF kök dizinde — rapor dondu, değiştirme.
+## Codex onboarding sırası (sıfırdan açan agent için)
+
+**İlk turn'de bu sırayla oku (atlama):**
+1. `AGENTS.md` (bu dosya) — proje brief, kilit kararlar, red flag listesi.
+2. `face-mac/CLAUDE.md` — ⭐ ana doküman. Pin plan, protokol, agregasyon, gotcha, kullanım komutları.
+3. Açık iş'e göre ilgili kaynak:
+   - BLE / iPhone bug: `iphone-app/TaksiGuvenlik/BLEManager.swift` + `face-mac/esp32-cam/src/main.cpp`
+   - Sunucu / kalite filtresi: `face-mac/server/recognition.py` + `face-mac/server/app.py`
+   - STM state machine / clock: `face-mac/Stm32/taxi_guvenlik/Core/Src/main.c`
+
+**İlk turn'de yapma:**
+- Mimariye soru sorma, "Plan B v2" kilitli. Önce "Kilit kararlar" + "Red flag" tablolarını oku.
+- Yeni dosya/abstraction üretme. Mevcut 4 Swift / 1 ESP cpp / 1 STM main.c üzerine işle.
+- `taxi-key.pem`, `.git/`, PDF rapor — dokunma.
+- HM-10, OV5640+DCMI, AWS Rekognition, Android, HSE bypass önerisi getirme (red flag).
+
+**Açık iş (durum: 2026-05-14):**
+- BLE MTU 247 + defensive parser fix push'landı (commit `b68dded`), cihazda doğrulanmadı.
+- Doğrulama akışı:
+  1. ESP-CAM'i dock'a tak, USB'den besle (STM 5V'tan değil — brown-out).
+  2. PlatformIO ile `face-mac/esp32-cam/` flash et (`pio run -t upload`).
+  3. Xcode'da `iphone-app/TaksiGuvenlik.xcodeproj`'i aç, Cmd+R ile cihaza build et.
+  4. STM32'yi de flash et (CubeIDE veya `face-mac/Stm32/`), USB takılı kalsın.
+  5. iPhone app "TaxiGuard"a bağlanır → B1 USER (PC13) bas → SCANNING → MATCH.
+  6. iPhone ekranında similarity **%0 değil ~%66** görünmeli (Gokturk için).
+  7. Xcode console'da `[BLE raw] X bytes: ...` log satırı, X ≥ 20 byte olmalı (eski MTU 23'te 20'de kesiliyordu).
+
+**Yazma kuralları (tekrar):**
+- Türkçe konuş. Kod / commit / dosya yorumu İngilizce.
+- Onay almadan büyük mimari değişiklik yok.
 - Her kod değişikliği commit + push, anlamlı mesaj.
-- CLAUDE.md güncellersen AGENTS.md'yi de güncelle (ikisi senkron olmalı).
+- `CLAUDE.md` güncellersen `AGENTS.md`'yi de güncelle (ikisi senkron olmalı).
+- Emin değilsen araştır, varsayım yapma.
