@@ -202,6 +202,9 @@ HB\n
 
 ## Sunucu (Flask + InsightFace)
 
+> **Eval harness:** `face-mac/eval/` — donanım yokken bile FAR/FRR ölçümü için
+> `bulk_enroll.py` ve `far_frr.py`. Detay: `face-mac/eval/README.md`.
+
 Konum: `face-mac/server/`
 
 Dosyalar:
@@ -364,8 +367,9 @@ Bitirme/                                  # repo kökü
 │   ├── CLAUDE.md                         # bu dosya
 │   ├── embeddings.pkl                    # EC2 DB snapshot (yedek; canlı kopya EC2'de /app/data/)
 │   ├── server/                           # ⭐ Flask + InsightFace (EC2'de canlı)
-│   ├── esp32/                            # ⭐ PlatformIO firmware
-│   ├── stm32/                            # ⭐ CubeIDE (donanım gelince)
+│   ├── eval/                             # ⭐ FAR/FRR ölçüm harness'i (offline)
+│   ├── esp32-cam/                        # ⭐ PlatformIO firmware (Plan B aktif)
+│   ├── stm32/                            # ⭐ CubeIDE firmware
 │   └── android-v2/                       # ⭐ Android Studio (donanım gelince)
 │
 └── iphone-app/                           # PLAN B, DOKUNMA
