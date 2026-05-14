@@ -128,7 +128,7 @@ Bitirme/                                  # repo kökü
 7. ⏳ Harici LED + buzzer + buton (TARA/PANİK) STM'e bağlanıp test edilmedi
 8. ⏳ STM32 UART1/UART2 hatları tek başına test edilmedi (loopback / USB-TTL ile)
 9. ⏳ STM ↔ ESP32-CAM UART köprüsü — **ikisine aynı anda güç verilmedi henüz**
-10. ⏳ HM-10 entegrasyon + STM → telefon BLE notify
+10. 🟡 HM-10 tek başına test edildi (telefon + nRF Connect ile karakteristik okuma/yazma OK) — STM UART2'ye bağlama kısmı kaldı
 11. ⏳ Android app v2: BLE central + Intent.CALL + foreground service
 12. ⏳ 20-30 kişi enroll, FAR/FRR ölçümü
 13. ⏳ Test: ışık (100/300/600 lx), mesafe (30-120 cm) — rapor Tablo 5.1
