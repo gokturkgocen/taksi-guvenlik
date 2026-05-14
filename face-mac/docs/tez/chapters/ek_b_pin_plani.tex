@@ -1,0 +1,78 @@
+\chapter{STM32 Pin Tahsisi ve Bağlantı Şeması}
+\label{app:pin-plani}
+
+\section{Pin Tahsis Tablosu (NUCLEO-F767ZI)}
+
+\begin{table}[h!]
+\centering
+\caption{STM32 NUCLEO-F767ZI çevre birim ve GPIO tahsisleri (Plan B).}
+\label{tab:pin-tahsisi}
+\small
+\begin{tabular}{l l l l}
+\toprule
+\textbf{İşlev} & \textbf{Pin} & \textbf{Bağlantı} & \textbf{Not}\\
+\midrule
+\multicolumn{4}{l}{\emph{UART1 --- ESP32-CAM iletişimi (115200 bps 8N1)}}\\
+TX & PA9  & ESP32-CAM RX (IO14) & UART komutu (CAPTURE)\\
+RX & PA10 & ESP32-CAM TX (IO13) & RESULT satırı\\
+\midrule
+\multicolumn{4}{l}{\emph{UART2 --- HM-10 BLE iletişimi (9600 bps 8N1)}}\\
+TX & PD5 & HM-10 RXD & Mesaj çerçeveleri telefona\\
+RX & PD6 & HM-10 TXD & (Şu an kullanılmıyor)\\
+\midrule
+\multicolumn{4}{l}{\emph{Buton girişleri (EXTI)}}\\
+TARA  & PC13 & B1 USER (kart üstü mavi buton)        & EXTI13, pull-up\\
+PANİK & PA0  & Harici buton, breadboard üzerinde     & EXTI0, pull-up\\
+\midrule
+\multicolumn{4}{l}{\emph{GPIO çıkışları (push-pull)}}\\
+Yeşil LED   & PB0  & Harici LED + 220\,$\Omega$       & IDLE göstergesi\\
+Sarı LED    & PD12 & Harici LED + 220\,$\Omega$       & SCANNING / NETERR\\
+Kırmızı LED & PB14 & Harici LED + 220\,$\Omega$       & MATCH / PANIC\\
+Buzzer      & PD13 & Aktif buzzer (5V, sürücü transistor) & MATCH / PANIC\\
+\midrule
+\multicolumn{4}{l}{\emph{Kapalı çevre birimleri}}\\
+ETH      & --- & (Disable)        & DCMI pin çakışması; Plan B'de DCMI N/A\\
+DCMI     & --- & (Disable)        & Kamera ESP32-CAM tarafında\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Güç ve Topraklama}
+
+\begin{itemize}[itemsep=1pt]
+    \item STM32 NUCLEO kartı USB üzerinden (ST-Link ya da USB User) beslenir.
+    \item ESP32-CAM 5\,V Vin üzerinden beslenir; 3.3\,V regülatörü modülde
+          dahilidir.
+    \item HM-10 modülü 3.3\,V besleme alır (STM32'nin 3V3 pininden).
+    \item Tüm topraklar ortak (GND) bara üzerinden bağlanır.
+    \item ESP32-CAM tarafında flash sırasında IO0 GND'ye çekilir; sonrasında
+          serbest bırakılır.
+\end{itemize}
+
+\section{Bring-up Sırası}
+
+\Cref{tab:bringup} sergiye gitmeden önce takip edilecek bring-up sırasını
+özetler. Her satırın ``başarı kriteri'' sütunu sağlandıktan sonra bir
+sonraki satıra geçilir.
+
+\begin{table}[h!]
+\centering
+\caption{Sergi öncesi donanım bring-up sırası ve başarı kriterleri.}
+\label{tab:bringup}
+\small
+\begin{tabularx}{\linewidth}{l X X}
+\toprule
+\textbf{Adım} & \textbf{İşlem} & \textbf{Başarı Kriteri}\\
+\midrule
+1 & Harici LED'leri ve buzzer'ı breadboard'a kur, STM'e bağla & TARA basınca SARI yanar, PANİK basınca KIRMIZI + buzzer\\
+2 & STM UART1 TX'i USB-TTL ile dinle (115200) & \texttt{CAPTURE} satırı UART'ta görünür\\
+3 & STM UART2'yi USB-TTL ile dinle (9600) & \texttt{SCANNING/MATCH/PANIC} satırları görünür\\
+4 & ESP32-CAM'i USB-TTL ile flash et, Wi-Fi'a bağlanışını izle & Seri çıktıda IP adresi görünür\\
+5 & ESP32-CAM'i \texttt{far\_frr.py} ile test et & EC2 health OK + tek probe MATCH/NOMATCH cevabı\\
+6 & STM ve ESP32-CAM'i aynı güç hattında birlikte ayağa kaldır, UART1 bağla & STM TARA $\rightarrow$ ESP burst $\rightarrow$ STM RESULT\\
+7 & HM-10'u STM UART2'ye bağla & Telefonun nRF Connect'inde \texttt{SCANNING/HB} satırları görünür\\
+8 & TaxiGuard Android uygulamasını yükle, BLE central başlat & MATCH frame'inde otomatik 155 araması başlar\\
+9 & Test seti ile FAR/FRR ölçümü yap & ROC eğrisi + EER raporu üretildi\\
+\bottomrule
+\end{tabularx}
+\end{table}

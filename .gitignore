@@ -51,6 +51,26 @@ face-mac/Stm32/host_tests/test_state_machine
 face-mac/Stm32/host_tests/*.dSYM/
 face-mac/Stm32/host_tests/*.o
 
+# LaTeX build artifacts (tez + sunum)
+face-mac/docs/**/*.aux
+face-mac/docs/**/*.log
+face-mac/docs/**/*.out
+face-mac/docs/**/*.toc
+face-mac/docs/**/*.lof
+face-mac/docs/**/*.lot
+face-mac/docs/**/*.bbl
+face-mac/docs/**/*.blg
+face-mac/docs/**/*.fls
+face-mac/docs/**/*.fdb_latexmk
+face-mac/docs/**/*.synctex.gz
+face-mac/docs/**/*.nav
+face-mac/docs/**/*.snm
+face-mac/docs/**/*.vrb
+face-mac/docs/**/*.run.xml
+# Üretilen PDF'leri repo'da tutmuyoruz; her commit'te kaynak doğrudur
+face-mac/docs/tez/main.pdf
+face-mac/docs/sunum/main.pdf
+
 # Android (gradle artifacts + local config; sources stay tracked)
 face-mac/android-v2/.gradle/
 face-mac/android-v2/build/

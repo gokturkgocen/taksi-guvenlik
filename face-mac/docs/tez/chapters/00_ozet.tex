@@ -1,0 +1,55 @@
+\chapter*{Özet}
+\addcontentsline{toc}{chapter}{Özet}
+
+Bu projede; taksi gibi araç içi ortamlarda sürücü güvenliğini artırmaya
+yönelik, gömülü sistem tabanlı bir yüz tanıma çözümü tasarlanmış ve
+prototip düzeyinde gerçekleştirilmiştir. Sistem, arka koltuğa yerleştirilen
+bir ESP32-CAM modülü üzerinden 2 saniye boyunca 5 kare/saniye hızında
+toplam 10 karelik bir görüntü öbeği yakalar ve Wi-Fi üzerinden bulutta
+çalıştırılan tanıma servisine iletir. Bulut servisi açık kaynak
+InsightFace kütüphanesini (buffalo\_l, ArcFace-R100) kullanarak çoklu
+kare için kalite filtresi uygular, geçerli gömme vektörlerinin
+centroidini hesaplar ve aranan kişi veri tabanı ile kosinüs benzerliği
+ölçer. Sonuç, UART üzerinden STM32 NUCLEO-F767ZI tabanlı olay
+yöneticisine iletilir; STM32 LED ve buzzer ile sürücüye geri bildirim
+verir ve HM-10 BLE modülü üzerinden eşli Android telefona iletir.
+Telefondaki uygulama, BLE bildirimini alarak otomatik biçimde
+\textbf{155 Polis İmdat} hattını arar. Tasarım modülerdir; donanım yan~ürünü
+olarak elde edilen yerel ön~işleme, bulut tanıma ve BLE tetikleme
+katmanları birbirinden bağımsız geliştirilebilir niteliktedir. Çalışma,
+düşük maliyetli (donanım eki $<$~500~TL), KVKK uyumlu ve filo araçlarına
+genişletilebilir bir referans mimari sunmaktadır.
+
+\noindent\textbf{Anahtar Kelimeler:} yüz tanıma, ArcFace, gömülü sistem,
+ESP32-CAM, STM32, BLE, IoT güvenlik, taksi güvenliği, çoklu-kare
+agregasyon, pasif canlılık.
+
+\vspace{1cm}
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This thesis presents the design and prototype implementation of an
+embedded face-recognition system aimed at improving driver safety in
+in-vehicle environments such as taxis. An ESP32-CAM module mounted toward
+the rear seat captures a 10-frame burst at 5\,FPS over 2 seconds upon the
+driver's scan command and uploads it over Wi-Fi to a cloud recognition
+service. The service, built on top of the open-source InsightFace
+library (buffalo\_l, ArcFace-R100) and hosted on AWS EC2, applies a
+per-frame quality gate, computes the centroid of valid embeddings, and
+performs cosine similarity matching against a wanted-suspect database.
+The result is delivered over UART to an STM32 NUCLEO-F767ZI based event
+manager that drives the driver-facing LEDs and buzzer and forwards the
+event to a paired Android phone over an HM-10 Bluetooth Low Energy link.
+The Android application listens for BLE notifications and automatically
+dials the national emergency number \textbf{155}. The architecture is
+modular: on-device pre-processing, cloud-side recognition and BLE-driven
+actuation can be developed independently. The result is a low-cost
+(under \euro\,15 in extra hardware), GDPR-aware, fleet-extensible
+reference architecture.
+
+\noindent\textbf{Keywords:} face recognition, ArcFace, embedded systems,
+ESP32-CAM, STM32, BLE, IoT security, taxi safety, multi-frame aggregation,
+passive liveness.
+
+\cleardoublepage

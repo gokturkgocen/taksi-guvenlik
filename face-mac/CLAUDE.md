@@ -211,6 +211,13 @@ HB\n
 > deterministik fake clock üzerinden doğrulanıyor. `make run` ile çalışır.
 > Donanım gelince main.c'de callback'leri HAL'a bağla, modül zaten yerinde.
 
+> **Akademik çıktılar:** `face-mac/docs/`
+> - `tez/` — LaTeX bitirme tezi (gelişme raporu şablonuyla aynı stil), 6 bölüm + 2 ek
+> - `sunum/` — Beamer slaytları (16:9, 19 slayt, ~15 dk)
+> - `hazirlik/` — donanım bring-up planı, sergi kurulum kılavuzu, küçültülmüş test seti
+> Tez Bölüm 5 yer tutucu tablolarla; ölçüm sonrası dolacak. Sergi sırasında
+> yapılacak işler `hazirlik/bring_up_plani.md`'de adım adım.
+
 Konum: `face-mac/server/`
 
 Dosyalar:

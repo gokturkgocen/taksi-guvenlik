@@ -1,0 +1,213 @@
+\chapter{Ölçüm Düzeni ve Sonuçlar}
+\label{ch:sonuclar}
+
+\section{Ölçüm Planı}
+\label{sec:olcum-plani}
+
+Gelişme raporundaki 20--30 kişilik ölçüm hedefi, sergi takvimi içinde
+gerçekleştirilemediği için pratik düzeyde \textbf{küçültülmüş bir test
+seti} kullanılmıştır. Test seti üç bileşenden oluşur:
+
+\begin{itemize}[itemsep=2pt]
+    \item \textbf{Gallery (kayıtlı):} Proje ekibi (Göktürk Göçen, Ekin
+          Ağaoğlu) ve gönüllü olarak katılan toplam 5--8 kişi. Her bir
+          birey için kayıt fotoğrafı düzgün aydınlatma ve frontal poz
+          ile alınmıştır.
+    \item \textbf{Genuine probe seti:} Aynı bireylerin farklı zamanlarda,
+          farklı poz/aydınlatmalarda alınmış 3--5 fotoğrafı.
+    \item \textbf{Impostor probe seti:} Gallery'de olmayan bireylere ait
+          (kamuya açık veri setlerinden seçilmiş) fotoğraflar.
+\end{itemize}
+
+Her probe \texttt{far\_frr.py} aracı ile 10 karelik bir burst olarak
+sunucuya gönderilmiş; sunucu kalite filtresi, centroid hesabı ve kosinüs
+benzerliği üretmiştir. Test üç farklı koşul grubunda tekrarlanmıştır:
+
+\begin{enumerate}[label=(\arabic*),itemsep=2pt]
+    \item \textbf{Aydınlatma}: 100~lx (alacakaranlık), 300~lx (ofis), 600~lx (gün ışığı).
+    \item \textbf{Mesafe}: 30--60~cm (yakın), 60--90~cm (orta), 90--120~cm (uzak).
+    \item \textbf{Pasif canlılık}: gerçek yüz vs.\ ekran tekrar (replay) testleri.
+\end{enumerate}
+
+\paragraph{Veri Yönetimi.} Tüm test görüntüleri sergi sonrası
+silinmek üzere yalnızca yerel diskte saklanmıştır; gönüllü katılımcılardan
+açık rıza alınmıştır. Sunucu tarafında ham görüntü diske yazılmamış,
+yalnızca \texttt{far\_frr.py}'nin CSV çıktıları (yüz görüntüsü yok,
+similarity skorları var) raporlamaya alınmıştır.
+
+\section{Sonuç Tabloları (Yer Tutucu)}
+\label{sec:sonuc-tablolari}
+
+Ölçüm dönemi tamamlandıkça aşağıdaki tablolar gerçek değerlerle
+doldurulacaktır. Mevcut sürümde değerler ``--'' ile bırakılmıştır.
+
+\begin{table}[h!]
+\centering
+\caption{Aydınlatma koşullarına göre FAR/FRR (orta mesafe, $\tau$ = 0.40).}
+\label{tab:results-light}
+\small
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Koşul} & \textbf{Genuine probe} & \textbf{Impostor probe} & \textbf{FAR} & \textbf{FRR}\\
+\midrule
+100~lx (alacakaranlık) & -- & -- & -- & --\\
+300~lx (ofis)          & -- & -- & -- & --\\
+600~lx (gün ışığı)     & -- & -- & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Mesafeye göre FAR/FRR (300~lx, $\tau$ = 0.40).}
+\label{tab:results-distance}
+\small
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Mesafe}  & \textbf{Genuine probe} & \textbf{Impostor probe} & \textbf{FAR} & \textbf{FRR}\\
+\midrule
+30--60~cm   & -- & -- & -- & --\\
+60--90~cm   & -- & -- & -- & --\\
+90--120~cm  & -- & -- & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Pasif canlılık skoru — gerçek yüz vs.\ fotoğraf replay (300~lx, 60--90~cm).}
+\label{tab:results-liveness}
+\small
+\begin{tabular}{l c c}
+\toprule
+\textbf{Koşul} & \textbf{Ortalama $\sigma_{emb}$} & \textbf{Standart sapma}\\
+\midrule
+Canlı yüz (gallery üyeleri) & -- & --\\
+Ekran tekrarı (telefonda gösterilen foto) & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Operasyonel Performans}
+\label{sec:perf}
+
+Sistemin uçtan uca gecikmesi, \texttt{far\_frr.py} aracının her burst için
+ölçtüğü değerlerden hesaplanmıştır. \Cref{tab:results-latency} kategori
+bazında ortalama, p50, p95 ve maksimum gecikme değerlerini gösterir.
+
+\begin{table}[h!]
+\centering
+\caption{Uçtan uca gecikme dağılımı (n adet burst üzerinden, saniye).}
+\label{tab:results-latency}
+\small
+\begin{tabular}{l c c c c c}
+\toprule
+\textbf{Kategori} & \textbf{n} & \textbf{Ortalama} & \textbf{p50} & \textbf{p95} & \textbf{Maks}\\
+\midrule
+Tüm burst'ler                          & -- & -- & -- & -- & --\\
+Genuine eşleşme                         & -- & -- & -- & -- & --\\
+Impostor reddi                          & -- & -- & -- & -- & --\\
+Kalite yetersiz (insufficient frames)   & -- & -- & -- & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Gecikme bileşenlerinin yaklaşık dağılımı (varsayılan koşulda, hedef):
+
+\begin{itemize}[itemsep=1pt]
+    \item ESP32-CAM görüntü yakalama (10 kare $\times$ 200~ms): $\sim$2.0~s
+    \item HTTP POST (Wi-Fi $\geq$~10\,Mbps, 10 kare): $\sim$1.5~s
+    \item Sunucu InsightFace çıkarımı (10 kare, CPU): $\sim$2.0~s
+    \item Centroid + DB araması: $<$~50~ms
+    \item HTTP cevap dönüşü + UART iletim: $<$~200~ms
+    \item \textbf{Beklenen toplam:} 5--7~s
+\end{itemize}
+
+\section{Eşik Optimizasyonu}
+
+\Cref{ch:gerceklestirme}'de tanımlanan \texttt{far\_frr.py} aracı,
+$\tau \in [0, 1]$ üzerinde tam süpürme yapar. EER ve $\mathrm{FAR} \leq 0.01$
+kısıtı altındaki operating point, ölçüm tamamlandıktan sonra
+aşağıdaki gibi raporlanacaktır:
+
+\begin{itemize}[itemsep=1pt]
+    \item \textbf{EER eşiği:} $\tau^\star_{EER}$ = -- (FAR = FRR = --)
+    \item \textbf{Operatif eşik} ($\mathrm{FAR} \leq 0.01$): $\tau^\star_{op}$ = -- (FRR = --)
+\end{itemize}
+
+Sunucu \texttt{MATCH\_THRESHOLD} ortam değişkeni, ölçüm sonrası optimize
+edilen değere göre güncellenip Docker konteyneri yeniden başlatılır.
+
+\section{Donanım Entegrasyon Doğrulaması}
+
+\paragraph{ESP32-CAM $\rightarrow$ EC2.} Uçtan uca burst akışı, sergi
+öncesi yapılan tezgah testlerinde doğrulanmıştır: ESP32-CAM Wi-Fi STA
+modunda hotspot'a bağlanmakta, 10 kareyi sunucuya POST etmekte ve JSON
+yanıtı parse etmektedir. Server tarafındaki yapılandırılmış JSON günlüğü,
+gelen burst sayısını, kalite-geçen kare sayısını ve gecikmeyi izlemekte
+kullanılmıştır.
+
+\paragraph{STM32 bring-up.} CubeMX projesi açılmış, build geçmiş ve
+kart flash edilmiştir. Onboard LED (LD1/LD2/LD3) GPIO toggle testleri
+yapılmıştır. Bu tezin yazıldığı tarihte; STM32 ile ESP32-CAM'in birlikte
+ayağa kaldırılması ve UART köprüsünün uçtan uca test edilmesi planlanmış
+ancak henüz tamamlanmamıştır. State machine modülü ise host-side bir
+test harness'ında 12 senaryo için doğrulanmıştır (\Cref{tab:host-tests});
+bu test seti, donanım üzerinde flash + flash döngülerinin sayısını
+azaltmıştır.
+
+\paragraph{HM-10 BLE.} HM-10 modülü, telefon ve nRF Connect uygulaması
+kullanılarak tek başına test edilmiştir. \texttt{0xFFE0} servis ve
+\texttt{0xFFE1} karakteristik üzerinden okuma--yazma çalışmış; modülün
+BLE tarafı sağlam bulunmuştur. STM32 UART2'ye bağlanması, durum geçiş
+satırlarının BLE notification olarak telefona iletilmesi sergi
+hazırlığının bir parçasıdır.
+
+\paragraph{Android.} Uygulama iskeleti, donanım gelmeden önce yazılıp
+test edilmiştir. ``DEV: Simulate MATCH'' butonu üzerinden, sahte bir
+\texttt{MATCH:Test\_Subject;0.95} satırı parse pipeline'a beslenmekte
+ve telefon otomatik olarak 155 hattını aramaktadır
+(\texttt{Intent.ACTION\_CALL}).
+
+\section{Tartışma}
+
+Sistem mimarisinde alınan üç temel kararın geriye dönüp bakıldığında
+hangi pratik faydaları sağladığı şu şekilde değerlendirilebilir:
+
+\begin{itemize}[itemsep=3pt]
+    \item \textbf{Kendi sunucumuz vs.\ kapalı kutu API:} İlk bakışta
+          AWS Rekognition gibi kapalı kutu bir servis hızlı bir geliştirme
+          vaat ediyor olsa da, eşik değerinin kontrolü, model değişiklik
+          riski ve KVKK belirsizliği nedeniyle reddedilmiştir. Sergi
+          öncesi optimizasyon esnekliği, açık kaynak InsightFace üzerinde
+          \texttt{MATCH\_THRESHOLD} ve \texttt{MIN\_QUALITY\_FRAMES}'i
+          serbestçe ayarlayabilme imkânını sağlamıştır.
+    \item \textbf{Multi-frame vs.\ tek snapshot:} 10 karelik burst, hem
+          robust eşleştirme hem ek bir model gerektirmeyen pasif canlılık
+          sinyali kazandırmıştır. Maliyeti yalnızca $\sim$5~s'lik
+          gecikmedir; bu süre, yolcu binişi başına bir kez gerçekleşen
+          bir işlem için makuldür.
+    \item \textbf{BLE + telefon vs.\ GSM modülü:} GSM modülü tabanlı
+          (SIM800/SIM7600) çözüm, hem donanım maliyeti (en az 250 TL
+          ek), hem SIM kart yönetimi hem de operatör servis bedeli gibi
+          ekstra yükler getirirdi. Telefonun BLE ile köprüleştirilmesi,
+          aynı işlevi sıfır ek altyapıyla sağlamıştır.
+\end{itemize}
+
+Kısıtlar ve limitler de açıkça raporlanmalıdır:
+
+\begin{itemize}[itemsep=2pt]
+    \item Ölçüm seti 5--8 kişilik bir gruba indirgendiği için FAR/FRR
+          değerleri istatistiksel olarak sınırlı kapsamlıdır. Sunulan
+          metrikler, sistemin \emph{ideal koşullarda yapılabilir} olduğunu
+          göstermektedir; geniş ölçekli (n=100+) konuşlandırma için ek
+          ölçüm gerekecektir.
+    \item Mevcut sunucu HTTP üzerinden çalışmaktadır (Faz 1). Üretim
+          ortamı için TLS + token tabanlı kimlik doğrulama zorunludur;
+          tasarım buna hazırdır ancak bu tezin değerlendirme kapsamı
+          dışındadır.
+    \item Yolcunun başörtüsü, gözlük, maske gibi yüz kapayıcı aksesuarlar
+          tanımayı etkileyebilmektedir. Bu durum sistem hatası değil,
+          ArcFace tabanlı yüz tanımanın doğal bir kısıtıdır ve operasyonel
+          süreçte (örnek: birden çok deneme + canlı sürücü onayı) çözülür.
+\end{itemize}

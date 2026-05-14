@@ -1,0 +1,336 @@
+\chapter{Yöntem ve Sistem Tasarımı}
+\label{ch:yontem}
+
+\section{Sistem Mimarisi}
+\label{sec:mimari}
+
+Sistem, fiziksel ve mantıksal olarak üç bölgeden oluşur:
+
+\begin{enumerate}[label=\textbf{\Alph*.},itemsep=2pt]
+    \item \textbf{Araç İçi Modül}: ESP32-CAM (kamera + Wi-Fi),
+          STM32 NUCLEO-F767ZI (olay yöneticisi), HM-10 BLE köprü modülü,
+          harici LED'ler, aktif buzzer, TARA ve PANİK butonları.
+    \item \textbf{Bulut Tanıma}: AWS EC2 üzerinde Docker konteynerinde
+          çalışan Flask + InsightFace hizmeti, pickle veri tabanı.
+    \item \textbf{Acil Çağrı}: Sürücünün BLE üzerinden eşli Android
+          telefonu, üzerinde çalışan TaxiGuard uygulaması.
+\end{enumerate}
+
+\Cref{fig:sistem-mimarisi} bu üç bölge arasındaki veri akışını gösterir.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=10mm and 10mm,
+    box/.style={draw=ink, thick, minimum width=28mm, minimum height=12mm,
+                align=center, font=\small\sffamily},
+    cloud/.style={draw=ink, thick, minimum width=34mm, minimum height=12mm,
+                  align=center, font=\small\sffamily, fill=ink!5},
+    arr/.style={-{Latex[length=2mm]}, thick, ink},
+    arracc/.style={-{Latex[length=2mm]}, thick, accent},
+    arrsig/.style={-{Latex[length=2mm]}, thick, signal},
+    lab/.style={font=\scriptsize\ttfamily, ink},
+]
+\node[box] (esp) {ESP32-CAM\\\scriptsize 10-frame burst, Wi-Fi};
+\node[box, below=of esp] (stm) {STM32 F767ZI\\\scriptsize Olay yöneticisi};
+\node[box, right=22mm of esp] (wifi) {Wi-Fi 2.4\,GHz};
+\node[cloud, right=of wifi] (ec2) {AWS EC2\\\scriptsize Flask + InsightFace};
+\node[box, below=of ec2] (phone) {Android\\\scriptsize Intent.ACTION\_CALL};
+\node[box, left=of phone] (hm10) {HM-10 BLE};
+
+\draw[arr] (esp.east) -- node[lab, above]{HTTP POST · JPEG} (wifi.west);
+\draw[arr] (wifi.east) -- (ec2.west);
+\draw[arracc] (ec2.west) to[bend left=30] node[lab, below]{JSON · match} (wifi.east);
+\draw[arr] (esp) -- node[lab, right]{UART1\\\scriptsize CAPTURE/RESULT} (stm);
+\draw[arr] (stm.east) -- node[lab, above]{UART2} (hm10.west);
+\draw[arr] (hm10.east) -- node[lab, above]{BLE notify} (phone.west);
+\draw[arrsig] (phone.south) -- ++(0,-7mm) node[lab, right]{GSM · 155};
+\end{tikzpicture}
+\caption{Sistem üst seviye blok şeması: araç içi modül, bulut tanıma ve acil çağrı katmanları.}
+\label{fig:sistem-mimarisi}
+\end{figure}
+
+Mimari tercihinde üç temel ilke belirleyici olmuştur:
+
+\begin{itemize}[itemsep=2pt]
+    \item \textbf{Tek sorumluluk:} Her bileşen, yalnızca tek bir
+          görevden sorumludur (ESP32-CAM: kamera+ağ, STM32: olay yönetimi,
+          EC2: tanıma, telefon: çağrı). Bu ayrışma, bir bileşenin
+          değişmesinin diğerlerini etkilememesini sağlar.
+    \item \textbf{Köprü olarak gömülü:} STM32, kamera ve internet
+          erişiminin doğrudan tarafı değildir; ESP32-CAM bu görevi
+          devralır. Bu, kamera/Wi-Fi'nin başarısız olması durumunda STM
+          tarafındaki olay zincirinin (panik, BLE) etkilenmemesini garanti
+          eder.
+    \item \textbf{Bulut tarafı içe dönük:} Tanıma sunucusu yalnızca
+          tek bir endpoint (\texttt{POST /search}) sunar; tüm karmaşık
+          mantık (kalite filtresi, multi-frame agregasyon) burada
+          gizlenir, gömülü taraf yalnızca ham JPEG verisi gönderir.
+\end{itemize}
+
+\section{Tanıma Yaklaşımı: Alternatiflerin Değerlendirilmesi}
+\label{sec:alt-degerlendirme}
+
+Gelişme raporunda \cite{ekin_gelisme_2026} başlatılan ``API destekli mi,
+yerel mi?'' tartışması, kapanışında üç alternatifi karşılaştırarak
+gerçekleştirme için API destekli yaklaşımı seçmiştir
+(\Cref{tab:alternatif-degerlendirme}). Bu seçimin önemli bir nüansı,
+``API destekli''nin \emph{kapalı kutu üçüncü taraf bulut servisi}
+(AWS Rekognition, Azure Face, Face++) değil; ekibin kendi sunucusuna
+deploy ettiği \emph{açık kaynak InsightFace REST API} olarak
+yorumlanmasıdır. Bu yorum sayesinde:
+
+\begin{itemize}[itemsep=2pt]
+    \item Kullanılan model (\texttt{buffalo\_l}) ve eşik değer
+          ($\tau$) ekibin kontrolündedir; tezde FAR/FRR ölçümleri
+          dolgun bir savunma için ölçülmüştür.
+    \item KVKK uyumu, veri akışını ekibin sahip olduğu sunucuda
+          tuttuğu için pratik olarak sağlanmıştır.
+    \item Kapatılma riski ya da fiyat değişikliği gibi üçüncü taraf
+          bağımlılıkları yoktur.
+\end{itemize}
+
+\begin{table}[h!]
+\centering
+\caption{Yüz tanıma yaklaşımı için alternatif değerlendirme matrisi.}
+\label{tab:alternatif-degerlendirme}
+\small
+\begin{tabularx}{\linewidth}{l X X l}
+\toprule
+\textbf{Alternatif} & \textbf{Avantaj} & \textbf{Dezavantaj/Risk} & \textbf{Karar}\\
+\midrule
+MCU üzerinde tanıma (Pico/F767) & Düşük maliyet, internet bağımsız &
+Hesap gücü/bellek yetmez; doğruluk düşer & Elendi \\
+Yerel ağır model (Pi 4 + CNN) & İnternet bağımsız, gecikme yerel &
+Donanım maliyeti, ısı, takvim riski & Ertelendi \\
+Kapalı üçüncü-taraf API (AWS Rekognition) & Hızlı entegrasyon &
+KVKK belirsizliği, fiyat/kapatma riski, model üzerinde kontrol yok & Elendi \\
+\textbf{Kendi InsightFace sunucumuz} & Tam kontrol, KVKK uyumlu, ücretsiz &
+Sunucu işletim yükü (EC2 \euro 5/ay) & \textbf{Seçildi} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Çoklu-Kare Burst Akışı}
+
+Tek bir karelik snapshot ile tanıma, geçici tıkanma, hareket bulanıklığı
+veya kırpılan yüz açısı durumlarında kırılgan davranır.  Bu projede,
+ESP32-CAM tetikleme komutu alır almaz \textbf{5 FPS hızında 2 saniye
+boyunca 10 kare} yakalar ve her birini ardışık olarak sunucuya iletir
+(\Cref{fig:burst-akisi}). Sunucu tarafı, kareleri tek bir oturum (session)
+altında biriktirir; 10.\ kare ulaştığında agregasyonu çalıştırır.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=2mm, font=\scriptsize\ttfamily,
+    every node/.style={draw=ink, minimum width=11mm, minimum height=7mm, align=center},
+]
+\node (n1) {f1\\\scriptsize sid=A,\,i=1/10};
+\node (n2) [right=of n1] {f2};
+\node (n3) [right=of n2] {f3};
+\node (n4) [right=of n3] {f4};
+\node (n5) [right=of n4] {f5};
+\node (n6) [right=of n5] {f6};
+\node (n7) [right=of n6] {f7};
+\node (n8) [right=of n7] {f8};
+\node (n9) [right=of n8] {f9};
+\node (n10) [right=of n9, draw=signal, very thick] {f10\\\scriptsize final};
+\end{tikzpicture}
+\caption{ESP32-CAM tarafından yakalanan 10 karelik burst. Her kare aynı oturum kimliğini taşır;
+yalnızca son kareye sunucu \emph{karar} ile yanıt verir, önceki karelerin yanıtı bir devam (continue) bildirimidir.}
+\label{fig:burst-akisi}
+\end{figure}
+
+Bu yaklaşımın iki kazancı vardır:
+
+\begin{enumerate}[label=(\arabic*),itemsep=2pt]
+    \item \textbf{Robustluk:} 10 kareden bir kısmı kalite filtresine
+          takılsa bile, en az 5 geçerli kare bulunduğunda doğruluk
+          tek-kare durumuna kıyasla belirgin biçimde yükselir
+          (literatür gözlemi: \cite{chen2018multiframe}).
+    \item \textbf{Pasif canlılık:} 10 karelik gömme vektörlerinin
+          karelere göre standart sapması, \emph{cross-frame embedding
+          variance} olarak hesaplanır ve fotoğraf replay saldırılarını
+          ek bir model yükü olmadan tespit etmek için kullanılır.
+\end{enumerate}
+
+\section{Sunucu Tarafı Kalite Filtresi ve Agregasyon}
+
+Sunucu, her kare için aşağıdaki kalite kapısını uygular:
+
+\begin{itemize}[itemsep=1pt]
+    \item Yüz tespit skoru (\texttt{det\_score}) $\geq$ 0.7,
+    \item Yüz bölgesi alanı (piksel) $\geq$ 80$\times$80,
+    \item Yüz dönüklüğü (yaw) açısı $|$yaw$|$ $\leq$ 30$^{\circ}$,
+    \item Laplace varyansı tabanlı bulanıklık skoru $\geq$ 10.
+\end{itemize}
+
+Bu kapıyı geçen karelerin embedding vektörleri biriktirilir. Son karede
+en az \texttt{MIN\_QUALITY\_FRAMES} (varsayılan 5) geçerli kare yoksa,
+sonuç \texttt{insufficient\_quality\_frames} olarak işaretlenir; ESP'ye
+NOMATCH yerine kalite-yetersiz uyarısı döner. Yeterli kare varsa:
+
+\begin{equation}
+\vec{c} = \frac{1}{N}\sum_{i=1}^{N} \vec{e}_i, \quad
+\vec{e}_i = \mathrm{ArcFace}(\mathrm{crop}(I_i)),
+\end{equation}
+
+şeklinde centroid hesaplanır ve veri tabanındaki her kayıt $\vec{d}_k$
+ile kosinüs benzerliği ölçülür:
+
+\begin{equation}
+\mathrm{sim}_k = \frac{\vec{c} \cdot \vec{d}_k}{\|\vec{c}\|\, \|\vec{d}_k\|}.
+\end{equation}
+
+En yüksek benzerlik $\mathrm{sim}^\star = \max_k \mathrm{sim}_k$, eşik
+$\tau$ (varsayılan 0.40) ile karşılaştırılır:
+$\mathrm{sim}^\star \geq \tau \Rightarrow \text{MATCH}$. Pasif canlılık
+skoru ise:
+
+\begin{equation}
+\mathrm{liveness} = \frac{1}{D}\sum_{j=1}^{D} \sigma_j, \quad
+\sigma_j = \mathrm{std}\bigl(\{e_{i,j}\}_{i=1}^{N}\bigr),
+\end{equation}
+
+ile, embedding boyutlarına göre standart sapmaların ortalaması olarak
+hesaplanır. Gerçek bir canlı yüzde bu skor sıfıra yakın ama anlamlı
+biçimde sıfırın üstündedir; fotoğraf replay durumunda anlamlı biçimde
+azalır.
+
+\section{STM32 Olay Yöneticisi}
+\label{sec:stm-olay-yonetimi}
+
+STM32 NUCLEO-F767ZI üzerinde çalışan firmware, bir sonlu durum makinesi
+(\emph{finite state machine}, FSM) etrafında düzenlenmiştir.
+Modül HAL bağımlılığından arındırılmış, taşınabilir C99 olarak yazılmış
+ve donanımla iletişimi bir \emph{callback vtable} üzerinden
+gerçekleştirmektedir (\Cref{fig:fsm}). Bu sayede aynı kaynak dosyası
+hem CubeIDE projesinde derlenebilmekte, hem de PC üzerinde sahte saat
+ve sahte callback'lerle birim testten geçirilebilmektedir.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[
+    node distance=18mm and 18mm,
+    state/.style={draw=ink, thick, rounded corners=2pt,
+                  minimum width=20mm, minimum height=9mm,
+                  align=center, font=\small\sffamily},
+    accent/.style={draw=signal, very thick},
+    arr/.style={-{Latex[length=1.6mm]}, thick, ink, font=\scriptsize\ttfamily},
+]
+\node[state] (idle) {IDLE};
+\node[state, right=of idle] (scan) {SCANNING};
+\node[state, above right=8mm and 14mm of scan] (match) {MATCH};
+\node[state, below right=8mm and 14mm of scan] (nom) {NOMATCH};
+\node[state, accent, below=20mm of scan] (panic) {PANIC};
+\node[state, right=of nom] (neterr) {NETERR};
+
+\draw[arr] (idle) -- node[above]{TARA} (scan);
+\draw[arr] (scan) -- node[sloped, above]{MATCH} (match);
+\draw[arr] (scan) -- node[sloped, below]{NOMATCH} (nom);
+\draw[arr] (scan) -- node[sloped, above]{timeout / ERR} (neterr);
+\draw[arr, dashed] (match.west) to[bend left=30] node[above]{hold 5\,s} (idle.north);
+\draw[arr, dashed] (nom.west) to[bend right=30] node[below]{hold 2\,s} (idle.south);
+\draw[arr, dashed] (neterr.north) to[bend left=15] node[right]{hold 3\,s} (idle.east);
+\draw[arr, signal] (idle.south) to[bend right=25] node[left]{PANIC} (panic.west);
+\draw[arr, signal] (scan.south) to[bend left=15] node[right]{PANIC} (panic.east);
+\draw[arr, dashed] (panic.west) to[bend left=45] node[left]{hold 10\,s} (idle.south);
+\end{tikzpicture}
+\caption{STM32 olay yöneticisi durum geçiş diyagramı. PANIC olayı her durumda erişilebilir.}
+\label{fig:fsm}
+\end{figure}
+
+Durum çıktıları aşağıdaki gibi tanımlanmıştır:
+
+\begin{itemize}[itemsep=1pt]
+    \item \textbf{IDLE:} yeşil LED sabit, 5\,s'de bir \texttt{HB\textbackslash n} kalp atışı,
+    \item \textbf{SCANNING:} sarı LED sabit, UART1'e \texttt{CAPTURE\textbackslash n},
+          UART2'ye \texttt{SCANNING\textbackslash n},
+    \item \textbf{MATCH:} kırmızı LED + buzzer, HM-10'a \texttt{MATCH:<name>;<sim>\textbackslash n},
+    \item \textbf{NOMATCH:} yeşil LED, HM-10'a \texttt{NOMATCH\textbackslash n},
+    \item \textbf{PANIC:} kırmızı LED + buzzer, HM-10'a \texttt{PANIC\textbackslash n},
+    \item \textbf{NETERR:} sarı LED yanıp sönüyor, HM-10'a \texttt{NETERR\textbackslash n}.
+\end{itemize}
+
+\section{Acil Çağrı Zinciri: BLE ve Android}
+
+HM-10 modülü \emph{transparent UART$\leftrightarrow$BLE} köprüsü olarak
+çalışır: STM32'nin UART2'ye yazdığı her bayt, modülün GATT karakteristiği
+(\texttt{FFE0} servisi, \texttt{FFE1} karakteristiği) üzerinden eşli
+telefona \emph{notification} olarak iletilir. Telefon tarafındaki TaxiGuard
+uygulaması bir \emph{foreground service} olarak BLE central rolünde
+durmakta, gelen ASCII satırları parse etmekte ve \texttt{MATCH:..} veya
+\texttt{PANIC} olayı geldiğinde \texttt{Intent.ACTION\_CALL("tel:155")}
+ile otomatik olarak Polis İmdat hattını aramaktadır.
+
+\Cref{tab:mesaj-cercevesi} sistemde tanımlı mesaj çerçevelerini özetler.
+
+\begin{table}[h!]
+\centering
+\caption{STM32 $\rightarrow$ HM-10 $\rightarrow$ Android mesaj çerçeveleri.}
+\label{tab:mesaj-cercevesi}
+\small
+\begin{tabular}{l l l}
+\toprule
+\textbf{Mesaj} & \textbf{Tetik} & \textbf{Telefon eylemi}\\
+\midrule
+\texttt{SCANNING\textbackslash n} & TARA başlangıcı     & Banner: ``Tarama başladı''\\
+\texttt{MATCH:<name>;<sim>\textbackslash n} & Pozitif eşleşme & \texttt{Intent.ACTION\_CALL("tel:155")}\\
+\texttt{NOMATCH\textbackslash n}  & Burst negatif       & Banner: ``Eşleşme yok''\\
+\texttt{PANIC\textbackslash n}    & PANİK butonu        & \texttt{Intent.ACTION\_CALL("tel:155")}\\
+\texttt{NETERR\textbackslash n}   & Scan timeout/ERR    & Banner: ``Sunucuya erişilemedi''\\
+\texttt{HB\textbackslash n}       & 5\,s aralıkla IDLE'da & Bağlantı sağlamlık göstergesi\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+iOS yerine Android'in seçilme nedeni, iOS sandbox kısıtlamasının
+\texttt{ACTION\_CALL} dengini desteklememesidir; iOS yalnızca
+dialer'ı önceden doldurulmuş hâlde açabilen
+\texttt{tel:} URL şemasına izin vermekte, otomatik bağlantı için
+kullanıcı dokunması gerekmektedir.
+
+\section{Ağ Yokken Davranış (Safe Mode)}
+\label{sec:safe-mode}
+
+Wi-Fi'nin yokluğunda veya sunucunun yanıt vermediği durumda sistem
+\textbf{güvenli moda} geçer:
+
+\begin{enumerate}[label=(\arabic*),itemsep=1pt]
+    \item ESP32-CAM, HTTP POST sırasında 10~s zaman aşımına ulaşırsa
+          UART1'e \texttt{ERR:no\_wifi} satırı gönderir.
+    \item STM32 olay yöneticisi 15~s'lik scan timeout'una takılırsa
+          (veya \texttt{ERR:..} satırı alırsa) NETERR durumuna geçer.
+    \item NETERR durumunda sarı LED yanıp söner, buzzer susar ve HM-10'a
+          \texttt{NETERR\textbackslash n} satırı gönderilir; telefon
+          ``Sunucuya erişilemedi'' bildirimiyle sürücüyü uyarır.
+    \item Bağlantı geri geldiğinde sistem normal akışa döner; ek bir
+          yeniden bağlanma adımı gerektirmez.
+\end{enumerate}
+
+Sistem, ağ yokken sessizce başarısız olmaz; sürücüye görsel ve metinsel
+geri bildirim ile durumu açıkça bildirir. Bu, hedef başarı ölçütleri
+arasında tanımlanan ``ağ olmadığında güvenli mod'' gerekliliğini
+karşılar.
+
+\section{Öneri Raporuna ve Gelişme Raporuna Göre Değişiklikler}
+\label{sec:degisiklikler}
+
+Bu tezde, gelişme raporundaki tasarımdan iki önemli sapma vardır:
+
+\begin{itemize}[itemsep=2pt]
+    \item \textbf{Kamera platformu:} Plan A'da STM32'nin DCMI çevre
+          birimine bağlı stand-alone bir OV5640 modülü öngörülmüştü.
+          Sergi takvimi içinde DVP/parallel arabirimli OV5640 modülü
+          tedarik edilemediği için \textbf{Plan B} olarak ESP32-CAM
+          (AI-Thinker, OV3660 sensörü) kullanılmıştır. Bu değişikliğin
+          \emph{tasarım üzerindeki etkisi:} kamera + Wi-Fi tek board'a
+          taşınmış, STM32 yalnızca olay yöneticisi rolünde kalmıştır.
+    \item \textbf{Gecikme hedefi:} Gelişme raporundaki ``$<$~200~ms''
+          tek-kare ile çalışan bir API sorgusunu varsayıyordu. Çoklu kare
+          burst tasarımına geçildiği için bu hedef, 10 kare için
+          \emph{en fazla 7~s} olarak revize edilmiştir. Bu süre,
+          yolcu binişi başına bir kez gerçekleşen bir işlem olduğu için
+          kullanıcı deneyimi açısından uygundur.
+\end{itemize}

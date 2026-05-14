@@ -1,0 +1,133 @@
+\chapter{Sonuç ve Öneriler}
+\label{ch:sonuc-oneriler}
+
+\section{Sonuç}
+
+Bu tez kapsamında; taksi gibi araç içi ortamlarda sürücü güvenliğini
+artırmaya yönelik, uçtan uca çalışan bir gömülü sistem prototipi
+tasarlanmış ve gerçekleştirilmiştir. Sistem; bulut tabanlı yüz tanıma
+servisi, ESP32-CAM tabanlı kamera/ağ köprüsü, STM32 tabanlı olay
+yöneticisi, HM-10 BLE modülü ve Android tabanlı otomatik 155 çağrı
+uygulamasından oluşmaktadır. Tasarım, üç temel ilkeye sadık kalmıştır:
+
+\begin{enumerate}[label=(\arabic*),itemsep=2pt]
+    \item Sürücü etkileşiminin tek bir butona indirgenmesi,
+    \item Görsel/işitsel geri bildirimle dikkat dağıtmayan bir kullanıcı
+          deneyimi,
+    \item Donanım eki maliyetinin 500~TL altında tutulması.
+\end{enumerate}
+
+Bulut tarafında açık kaynak InsightFace kütüphanesinin (buffalo\_l, ArcFace
+R100) deploy edilmesi, modelin ve eşik değerinin ekip kontrolünde
+kalmasını; bu da KVKK uyumlu bir tasarımı mümkün kılmıştır. Çoklu kare
+burst yaklaşımı (10 kare $\times$ 5 FPS), hem doğruluk hem pasif canlılık
+açısından tek-kare yaklaşıma kıyasla anlamlı kazanç sağlamıştır. STM32
+tarafında HAL'dan soyutlanmış bir durum makinesi modülü yazılması, host
+PC üzerinde 12 senaryolu birim testin geçirilmesini ve donanım üzerinde
+flash--flaş döngülerinin minimuma indirilmesini sağlamıştır.
+
+Sergi öncesi yapılan tezgah testlerinde:
+
+\begin{itemize}[itemsep=1pt]
+    \item EC2 sunucusunun health/check ve burst smoke testleri geçmiştir;
+    \item ESP32-CAM Wi-Fi STA modunda hotspot'a bağlanıp sunucuya 10
+          karelik burst gönderebilmektedir;
+    \item STM32 CubeMX projesi açılmış, build geçmiş ve kart üzerinde
+          onboard LED testleri yapılmıştır;
+    \item HM-10 modülü, telefon + nRF Connect üzerinden bağımsız olarak
+          test edilmiş ve doğru BLE GATT karakteristiği üzerinden veri
+          akışı sağlanmıştır;
+    \item Android uygulaması, ``DEV: Simulate MATCH'' butonu üzerinden,
+          donanım olmadan tek telefonda parse + 155 dial akışını başarıyla
+          tetiklemiştir.
+\end{itemize}
+
+Sergi haftası içinde tamamlanacak adımlar: STM ile ESP32-CAM'in birlikte
+ayağa kaldırılması, HM-10'un UART2'ye bağlanması, küçültülmüş bir test
+seti üzerinde FAR/FRR ölçümlerinin alınması ve sonuçların tezin
+\cref{ch:sonuclar}'üne işlenmesi.
+
+\section{Akademik ve Pratik Katkılar}
+
+Çalışmanın özgün katkıları şu şekilde özetlenebilir:
+
+\begin{itemize}[itemsep=2pt]
+    \item Açık kaynak yüz tanıma motorunun (InsightFace), küçük ölçekli
+          gömülü donanım (ESP32-CAM + STM32) ile entegre edilerek bir
+          taksi senaryosuna uyarlanması;
+    \item Pahalı GSM modülü yerine telefonun BLE ağ geçidi olarak
+          kullanılmasıyla, toplam donanım maliyetinin 500~TL'nin altında
+          tutulması;
+    \item Çoklu kare embedding standart sapmasının, ek model yükü
+          olmadan \emph{pasif canlılık} sinyali olarak kullanılması;
+    \item HAL'dan soyutlanmış, host-side birim test edilebilen taşınabilir
+          bir STM32 durum makinesi modülü;
+    \item Otomatik FAR/FRR ölçüm aracı ile, tezin tablo ve grafiklerinin
+          tekrarlanabilir biçimde üretilmesi.
+\end{itemize}
+
+\section{Geliştirme Önerileri}
+
+\subsection{Faz 2: HTTPS ve Kimlik Doğrulama}
+
+Mevcut sürüm (Faz 1) sunucusu HTTP üzerinden çalışmakta; sergi/test
+ortamı için yeterlidir ancak üretim için yetersizdir. Faz 2'ye geçiş için:
+
+\begin{itemize}[itemsep=1pt]
+    \item EC2 önüne Caddy veya nginx reverse proxy konulması; Let's Encrypt
+          ile otomatik sertifika alınması,
+    \item ESP32-CAM \texttt{config.h}'da \texttt{USE\_TLS=1} ve ISRG Root~X1
+          sertifika gömülmesi,
+    \item Sunucu tarafında \texttt{SHARED\_SECRET} aktif edilerek
+          ESP32-CAM ve harness'ın \texttt{X-Shared-Secret} başlığı
+          taşıması.
+\end{itemize}
+
+Bu adımlar tasarım açısından hazırdır; yaklaşık yarım günlük bir geçiş
+işidir.
+
+\subsection{Edge Inference (Kısmi Yerel Tanıma)}
+
+Mevcut tasarım, Wi-Fi gerektirir. Wi-Fi yokken sistem güvenli moda geçer
+(\cref{sec:safe-mode}) ancak tanıma çalışmaz. Hibrit bir tasarımda:
+
+\begin{itemize}[itemsep=1pt]
+    \item ESP32-S3 veya benzeri bir SoC üzerinde quantized ArcFace-MobileNet
+          ile kabaca bir ön-eleme yapılabilir;
+    \item Yalnızca yüksek-belirsizlik durumlarında bulut sorgulanır.
+\end{itemize}
+
+Bu, hem Wi-Fi yokluğunda kısmi işlevsellik hem de bulut maliyetlerinde
+düşüş sağlar; ancak ek bir geliştirme yatırımı gerektirir.
+
+\subsection{Filo Entegrasyonu}
+
+Birden fazla aracın merkezi panelde takibi için MQTT veya WebSocket
+tabanlı bir olay panosu eklenebilir. Sunucu zaten yapılandırılmış JSON
+günlüğü üretmektedir; bu günlüklerin bir MQTT broker'a yayınlanması
+büyük bir mimari değişiklik gerektirmemektedir.
+
+\subsection{Aktif Canlılık ve Çoklu Modalite}
+
+Mevcut pasif canlılık (cross-frame embedding $\sigma$) etkili olmakla
+birlikte, üst düzey saldırılara karşı (3B maske, yüksek çözünürlüklü
+ekran) sınırlı kalabilir. Hareket veya kafa-jest tabanlı aktif challenge
+(``başınızı sağa çevirin'') eklenmesi, sürücü deneyimini bozmadan
+arka koltukta sessizce gerçekleştirilebilir.
+
+\subsection{Yasal ve Etik Kapsam}
+
+Sistemin sahaya çıkarılması için:
+
+\begin{itemize}[itemsep=1pt]
+    \item KVKK kapsamında ``açık rıza'' veya ``kanunlarda öngörülmüş
+          hâl'' altında çalışacak hukuki çerçevenin netleştirilmesi,
+    \item Aranan kişiler veri tabanına girişin yetkili idari/kolluk
+          birimlerince yapılacağına dair operasyonel prosedürün
+          tanımlanması,
+    \item Yolcunun bilgilendirme yükümlülüğünün (örneğin araç içinde
+          görünür yazı veya sesli uyarı) ele alınması gerekmektedir.
+\end{itemize}
+
+Bu noktalar mühendislik kapsamı dışındadır ancak sistemin gerçek
+konuşlandırmaya yol bulması için ön koşuldur.

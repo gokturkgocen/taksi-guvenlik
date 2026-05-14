@@ -1,0 +1,324 @@
+\chapter{Gerçekleştirme}
+\label{ch:gerceklestirme}
+
+Bu bölümde, \cref{ch:yontem}'de tanımlanan tasarımın somut donanım ve
+yazılım bileşenlerine indirgenişi anlatılmaktadır. Her alt sistem için
+\emph{ne kullanıldı, neden kullanıldı, nasıl bağlandı, hangi
+parametrelerle çalıştığı} sırasıyla verilmiştir.
+
+\section{Donanım Listesi}
+
+\Cref{tab:bom} prototipte kullanılan tüm donanım bileşenlerini ve
+yaklaşık birim maliyetlerini özetler. Toplam ek donanım maliyeti,
+hedeflenen 500~TL bütçesi içinde kalmıştır.
+
+\begin{table}[h!]
+\centering
+\caption{Bileşen listesi (BOM) ve yaklaşık birim maliyetler.}
+\label{tab:bom}
+\small
+\begin{tabular}{l l c l}
+\toprule
+\textbf{Parça} & \textbf{Model / Tip} & \textbf{Adet} & \textbf{Tahmini Fiyat}\\
+\midrule
+Olay yöneticisi MCU      & STM32 NUCLEO-F767ZI      & 1 & (Mevcut, bütçeye eklenmedi)\\
+Kamera + Wi-Fi modülü    & ESP32-CAM AI-Thinker (OV3660) & 1 & 120 TL\\
+BLE köprü modülü         & HM-10 (CC2541)           & 1 & 80 TL\\
+LED                      & Yeşil 5\,mm, sarı, kırmızı + 220\,$\Omega$ direnç & 3+3 & 10 TL\\
+Buzzer                   & Aktif buzzer 5\,V        & 1 & 15 TL\\
+Buton                    & Push button taktil 6\,mm & 2 & 10 TL\\
+Breadboard + jumper      & --                       & -- & 100 TL\\
+USB-TTL dönüştürücü      & CP2102 / FT232           & 1 & 50 TL\\
+Yedek 40-pin male header & --                       & 2 & 10 TL\\
+\midrule
+\textbf{Toplam ek donanım} & & & \textbf{$\approx$ 395 TL}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Buluttaki çalışma maliyeti için AWS EC2 \texttt{m7i-flex.large}
+örneği eu-central-1 (Frankfurt) bölgesinde çalıştırılmaktadır;
+AWS Başlangıç Kredisi ile sergi ve test dönemi için ek maliyet
+oluşturmamıştır.
+
+\section{Sunucu Tarafı: Flask + InsightFace}
+\label{sec:sunucu-impl}
+
+\subsection{Yığın ve Bağımlılıklar}
+
+Sunucu tarafı Python 3.11 ile yazılmış, Flask web framework'ü ve
+InsightFace 0.7 paketi üzerine kurulmuştur. ONNX Runtime CPU sürümü
+kullanılmaktadır; bu sayede üretim ortamı (Linux/EC2) ve geliştirme
+ortamı (macOS) arasında deterministik davranış sağlanmaktadır.
+Konteynerleştirme Docker ile yapılmış; Gunicorn $-w\,1$ yapılandırmasıyla
+çalıştırılmaktadır. Tek worker zorunluluğu, oturum (session) verisinin
+süreç içi (in-memory) saklanmasından kaynaklanır: birden fazla worker,
+aynı oturumun karelerini farklı süreçlere dağıtarak agregasyonu kırardı.
+
+\subsection{Endpoint Tasarımı}
+
+Tek bir kritik endpoint mevcuttur: \texttt{POST /search}. İstek
+gövdesi JPEG bayt dizisi; başlıkları:
+
+\begin{itemize}[itemsep=1pt]
+    \item \texttt{X-Session-Id}: Oturum kimliği (UUID), tüm burst boyunca aynı.
+    \item \texttt{X-Frame-Index}: 1\textendash N arası kare sırası.
+    \item \texttt{X-Frame-Total}: Burst içindeki toplam kare sayısı (\=10).
+    \item \texttt{X-Shared-Secret}: (Opsiyonel) İlk faz için kapalı bir
+          anahtar; üretimde set edildiğinde \texttt{X-Shared-Secret}'i
+          taşımayan istekler 401 ile reddedilir.
+\end{itemize}
+
+Ara karelere yanıt: \texttt{\{"status":"continue", ...\}}; son kareye
+yanıt:
+
+\begin{lstlisting}[language=none, caption={Son kareye sunucu yanıt örneği.}, label=lst:final-response]
+{
+  "match": true,
+  "name": "Ali_Yilmaz",
+  "similarity": 0.9437,
+  "frames_used": 10,
+  "frames_total": 10,
+  "liveness_score": 0.014823
+}
+\end{lstlisting}
+
+\subsection{Operasyonel Sertleştirmeler}
+
+Sergi öncesi yapılan üç hafif sertleştirme:
+
+\begin{enumerate}[itemsep=2pt]
+    \item \textbf{Opsiyonel paylaşılan anahtar:} \texttt{SHARED\_SECRET}
+          ortam değişkeni atandığında \texttt{/search} endpoint'i
+          \texttt{X-Shared-Secret} başlığını arar; \texttt{/health} ve
+          \texttt{/metrics} izleme için açık tutulur.
+    \item \textbf{Yapılandırılmış JSON günlüğü:} Her burst için bir
+          satırlık JSON kayıt (\texttt{event:"burst\_complete"}, oturum
+          kimliği, match kararı, similarity, liveness, gecikme) standart
+          çıktıya yazılır. Bu format, sergi sonrası analiz ve tez Bölüm 5
+          tablolarının üretimi için doğrudan kullanılabilir.
+    \item \textbf{\texttt{/metrics} endpoint'i:} Açık oturum sayısı,
+          tamamlanan burst sayısı, MATCH/NOMATCH dağılımı, son 100
+          burst'ün gecikme p50/p95/maks değerleri, uptime ve kimlik
+          doğrulama durumu tek bir JSON cevabıyla raporlanır.
+\end{enumerate}
+
+\section{ESP32-CAM: Kamera ve Ağ Köprüsü}
+
+\subsection{Donanım Yapılandırması}
+
+AI-Thinker ESP32-CAM modülü, ESP32-WROOM-32 SoC üzerine entegre OV3660
+kamera modülü ve antenden oluşur. Wi-Fi STA modunda sürücünün telefon
+hotspot'una bağlanır; flash etmek için 3.3~V FTDI bağlantısı kullanılır
+(IO0 GND'ye çekilerek bootloader moduna geçilir).
+
+\subsection{Yazılım Akışı}
+
+Firmware PlatformIO + Arduino-ESP32 çekirdeği üzerinde C++ olarak
+yazılmıştır. Ana döngü iki görevi yürütür:
+
+\begin{enumerate}[label=(\arabic*),itemsep=1pt]
+    \item STM32'den UART üzerinden gelen \texttt{CAPTURE\textbackslash n}
+          komutunu dinlemek,
+    \item Komut geldiğinde 5~FPS hızında 10 JPEG kare yakalamak, her
+          birini yeni bir HTTP POST isteğiyle EC2'ye iletmek ve son
+          karenin JSON cevabını parse etmek.
+\end{enumerate}
+
+Burst boyunca her POST aynı oturum kimliğini (\texttt{X-Session-Id})
+taşır. Son kare üzerindeki yanıt JSON olarak parse edildikten sonra:
+
+\begin{itemize}[itemsep=1pt]
+    \item Eşleşme varsa: STM32'ye \texttt{1;<name>;<sim>\textbackslash n} CSV satırı,
+    \item Eşleşme yoksa: \texttt{0;;<sim>\textbackslash n},
+    \item Hata durumunda: \texttt{ERR:<tag>\textbackslash n} (örnek tag:
+          \texttt{no\_wifi}, \texttt{http\_500}, \texttt{json\_parse}).
+\end{itemize}
+
+\subsection{Yapılandırma}
+
+Wi-Fi bilgileri, sunucu URL'si ve TLS bayrağı \texttt{include/config.h}
+dosyasından okunur. Faz 1'de (HTTP) ve Faz 2'de (HTTPS + Let's Encrypt)
+arasındaki tek farklılık bu dosyadır; sertifika güncellemesi ve TLS
+bayrağı ayarı sonrasında yeni image flash edilir.
+
+\section{STM32 Olay Yöneticisi: Gerçekleme}
+
+\subsection{Donanım Konfigürasyonu}
+
+CubeMX projesi NUCLEO-F767ZI üzerinde aşağıdaki çevre birimleri ile
+yapılandırılmıştır:
+
+\begin{itemize}[itemsep=1pt]
+    \item UART1, 115200~bps 8N1, PA9/PA10: ESP32-CAM ile haberleşme,
+    \item UART2, 9600~bps 8N1, PD5/PD6: HM-10 ile haberleşme,
+    \item GPIO: PB0 (yeşil), PD12 (sarı), PB14 (kırmızı), PD13 (buzzer),
+    \item EXTI: PC13 (TARA butonu, kart üstü mavi USER butonu), PA0 (harici PANİK butonu).
+\end{itemize}
+
+\textbf{Önemli not:} F767ZI'de Ethernet çevre birimi varsayılan olarak
+aktif gelir ve DCMI pinleri ile çakışır. Bu projede DCMI kullanılmadığı
+için ETH disabled bırakılmıştır; eski Plan A taslağındaki kamera doğrudan
+DCMI'ye bağlanacak senaryosu Plan B'ye geçişle birlikte düşmüştür.
+
+\subsection{Yazılım Mimarisi}
+
+STM32 firmware'i, taşınabilir C99 olarak yazılmış bir
+\textbf{durum makinesi modülü} etrafında düzenlenmiştir. Modül,
+HAL'a doğrudan bağımlı değildir; tüm donanım etkileşimleri bir
+callback vtable üzerinden gerçekleşir:
+
+\begin{lstlisting}[language=C, caption={State machine callback vtable.}, label=lst:cb]
+typedef struct {
+    void     (*set_led)(sm_led_t led, bool on);
+    void     (*set_buzzer)(bool on);
+    void     (*send_to_esp)(const char *line);
+    void     (*send_to_hm10)(const char *line);
+    uint32_t (*now_ms)(void);
+} sm_callbacks_t;
+\end{lstlisting}
+
+Bu soyutlama sayesinde modülün davranışı, donanım olmadan PC üzerinde
+test edilebilmektedir. Tezin yazıldığı anda, modül için 12 ayrı senaryo
+gcc ile derlenen bir host-side test harness'ında deterministik olarak
+geçmiştir (\Cref{tab:host-tests}). Bu testler donanım gelmeden önce
+yazılmış; donanım üzerinde flash etmenin yarattığı geliştirme döngüsünü
+büyük ölçüde kısaltmıştır.
+
+\begin{table}[h!]
+\centering
+\caption{STM32 durum makinesi için host-side birim test kapsamı.}
+\label{tab:host-tests}
+\small
+\begin{tabular}{l l}
+\toprule
+\textbf{Test senaryosu} & \textbf{Doğrulanan davranış}\\
+\midrule
+initial state              & IDLE + yeşil LED sabit\\
+TARA press                 & SCANNING geçişi + CAPTURE komutu\\
+ESP MATCH                  & MATCH durumu + kırmızı LED + buzzer + HM-10 frame\\
+ESP NOMATCH                & NOMATCH yolu, yeşil LED, doğru frame\\
+scan timeout               & 15~s sonrası NETERR\\
+PANIC during scan          & PANIC durumunun her durumdan erişilebilir olması\\
+hold expiry                & MATCH/NOMATCH/NETERR sonunda IDLE'a dönüş\\
+heartbeat                  & IDLE'da 5~s aralıkla HB satırı\\
+TARA during hold           & Hold penceresinin kesilebilmesi\\
+late ESP result            & Timeout sonrası gelen yanıtın yok sayılması\\
+NETERR blink               & NETERR'de sarı LED'in periyodik geçişi\\
+oversized name             & 32 karakterden uzun isimde taşma yok\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Embedded Uygulama}
+
+main.c içinde modül başlatılırken vtable HAL fonksiyonlarına bağlanır.
+\Cref{lst:adapter}, bağlama kalıbının tipik bir örneğini göstermektedir.
+
+\begin{lstlisting}[language=C, caption={CubeIDE main.c içerisindeki adapter kalıbı.}, label=lst:adapter]
+static void on_set_led(sm_led_t led, bool on) {
+    GPIO_PinState s = on ? GPIO_PIN_SET : GPIO_PIN_RESET;
+    switch (led) {
+        case SM_LED_GREEN: HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, s); break;
+        case SM_LED_AMBER: HAL_GPIO_WritePin(LED_AMBER_GPIO_Port, LED_AMBER_Pin, s); break;
+        case SM_LED_RED:   HAL_GPIO_WritePin(LED_RED_GPIO_Port,   LED_RED_Pin,   s); break;
+    }
+}
+static void on_uart_tx(UART_HandleTypeDef *u, const char *line) {
+    HAL_UART_Transmit(u, (uint8_t *)line, strlen(line), 100);
+}
+\end{lstlisting}
+
+\section{Android Uygulaması: TaxiGuard v2}
+
+\subsection{Bileşenler}
+
+Uygulama Kotlin + Jetpack Compose ile yazılmış, hedef SDK 34, minimum
+SDK 26'dır. Üç ana modülden oluşur:
+
+\begin{itemize}[itemsep=2pt]
+    \item \textbf{\texttt{Hm10Service}}: Bir foreground servis olarak
+          BLE central rolünde çalışır. HM-10 modülünü \texttt{0xFFE0}
+          servis UUID'sine göre tarar, bulunduğunda GATT bağlantısı kurar
+          ve \texttt{0xFFE1} karakteristiğinin notifikasyonlarına abone
+          olur. MTU parçalanmasına karşı dahili bir \emph{line buffer}
+          her \texttt{\textbackslash n}'a kadar baytları biriktirir.
+    \item \textbf{\texttt{FrameParser}}: Gelen ASCII satırları parse
+          ederek bir \texttt{MatchEvent} sealed hierarchy'sine dönüştürür
+          (\texttt{Scanning, Match(name, sim), NoMatch, Panic, NetError,
+          Heartbeat, Unknown}).
+    \item \textbf{\texttt{EmergencyDialer}}: MATCH veya PANIC event'i
+          alındığında \texttt{Intent.ACTION\_CALL("tel:155")}'i çağırır;
+          \texttt{CALL\_PHONE} izni yoksa \texttt{ACTION\_DIAL} dönüşüne
+          fallback yapar (dialer önceden doldurulmuş şekilde açılır).
+\end{itemize}
+
+UI tek ekrandır (\texttt{HomeScreen}); bağlantı bandı, son MATCH kartı,
+ekran içi olay günlüğü ve servis Başlat/Durdur kontrolleri içerir.
+Ayrıca, donanım yokken bile parse + dial akışını tek telefonda doğrulamak
+için \emph{``DEV: Simulate MATCH''} butonu yer alır. Bu buton, servise
+\texttt{ACTION\_SIMULATE\_MATCH} intent'i göndererek sahte bir
+\texttt{MATCH:Test\_Subject;0.95} satırını parse pipeline'ına besler;
+böylece HM-10 elimizde olmadan da uygulamanın MATCH$\rightarrow$155
+zinciri doğrulanabilmektedir.
+
+\subsection{İzinler ve Sandbox Davranışı}
+
+\Cref{tab:android-izinler} uygulamanın manifest'inde tanımlı izinleri ve
+gerekçelerini özetler.
+
+\begin{table}[h!]
+\centering
+\caption{Android izinleri ve gerekçeleri.}
+\label{tab:android-izinler}
+\small
+\begin{tabular}{l l}
+\toprule
+\textbf{İzin} & \textbf{Gerekçe}\\
+\midrule
+\texttt{BLUETOOTH\_SCAN}                          & API 31+ BLE cihaz keşfi\\
+\texttt{BLUETOOTH\_CONNECT}                        & GATT bağlantı kurma\\
+\texttt{CALL\_PHONE}                               & \texttt{Intent.ACTION\_CALL("tel:155")}\\
+\texttt{FOREGROUND\_SERVICE\_CONNECTED\_DEVICE}    & Servis kategorisi (BLE)\\
+\texttt{POST\_NOTIFICATIONS}                       & API 33+ foreground bildirimi\\
+\texttt{ACCESS\_FINE\_LOCATION}                    & API 26--30 (legacy BLE keşif)\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Ölçüm Harness'i: \texttt{far\_frr.py}}
+\label{sec:harness}
+
+Tez \cref{ch:sonuclar} ölçümlerinin tekrarlanabilir biçimde
+yapılabilmesi için \texttt{eval/far\_frr.py} adlı bir Python aracı
+geliştirilmiştir. Araç bir veri seti klasörünü (\texttt{dataset/<isim>/<foto>.jpg})
+tarar, her fotoğrafı 10 karelik bir burst olarak \texttt{/search}
+endpoint'ine gönderir ve dönen similarity skorlarını CSV'ye yazar.
+Ardından eşik $\tau \in [0, 1]$ üzerinde 0.01 adımlarla bir süpürme
+gerçekleştirerek FAR, FRR ve TA/FA/TR/FR sayılarını üretir; Equal Error
+Rate (EER) eşiğini ve istenen maksimum FAR altındaki en iyi operating
+point'i raporlar. Matplotlib mevcutsa bir FAR--FRR grafiği de
+oluşturur.
+
+\Cref{tab:harness-cikti} aracın ürettiği çıktı dosyalarını özetler.
+
+\begin{table}[h!]
+\centering
+\caption{\texttt{far\_frr.py} aracının ürettiği çıktı dosyaları.}
+\label{tab:harness-cikti}
+\small
+\begin{tabular}{l l}
+\toprule
+\textbf{Dosya} & \textbf{İçerik}\\
+\midrule
+\texttt{<run>.csv}            & Her probe için bir satır; similarity, matched name, kategori\\
+\texttt{<run>\_sweep.csv}     & Eşik--FAR/FRR tablosu (101 satır)\\
+\texttt{<run>\_summary.json}  & EER eşiği, operating point, sayımlar\\
+\texttt{<run>\_roc.png}       & FAR--FRR eğrisi (matplotlib varsa)\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Aracın ürettiği CSV ve JSON dosyaları, tezin tablo ve grafiklerine
+doğrudan kaynak olur; \texttt{run\_yyyy\_mm\_dd} isimlendirmesi sayesinde
+hangi koşulda yapılmış ölçüm olduğu izlenebilir.

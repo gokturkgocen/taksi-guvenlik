@@ -1,0 +1,139 @@
+% =====================================================================
+%  Lisans Bitirme Tezi — Yüz Tanıma Tabanlı Sürücü Güvenlik Sistemi
+%  Ege Üniversitesi · Elektrik-Elektronik Mühendisliği · 2025–2026
+%
+%  Derleme:
+%      latexmk -pdf main.tex
+%      # veya:  pdflatex main && bibtex main && pdflatex main && pdflatex main
+%
+%  Türkçe karakter desteği için XeLaTeX gerekmez; pdflatex + babel turkish
+%  Gelişme Raporu ile aynı tonu korur.
+% =====================================================================
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[turkish]{babel}
+\usepackage{lmodern}                 % Computer Modern (rapor ile aynı)
+\usepackage[a4paper,
+            left=3.0cm,right=2.5cm,
+            top=2.8cm,bottom=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+
+% --- Renkler (poster ile uyumlu, sober) ----------------------------------
+\definecolor{ink}{HTML}{11162A}
+\definecolor{accent}{HTML}{8C631A}
+\definecolor{rule}{HTML}{2A3047}
+\definecolor{mute}{HTML}{5B6075}
+\definecolor{signal}{HTML}{9C2A21}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=ink,
+    citecolor=accent,
+    urlcolor=accent,
+    pdftitle={Yüz Tanıma Tabanlı Sürücü Güvenlik ve Acil Durum Bildirim Sistemi},
+    pdfauthor={Göktürk Göçen},
+    pdfsubject={Lisans Bitirme Tezi, Ege Üniversitesi EE},
+}
+
+\captionsetup{font=small, labelfont=bf, labelsep=period}
+
+% --- Listings (kod blokları) ---------------------------------------------
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\bfseries\color{ink},
+    commentstyle=\itshape\color{mute},
+    stringstyle=\color{accent},
+    showstringspaces=false,
+    frame=single,
+    rulecolor=\color{rule},
+    framesep=4pt,
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=2,
+    captionpos=b,
+}
+\lstdefinelanguage{none}{
+    keywords={},
+    sensitive=false,
+}
+
+% --- Türkçe küçük düzeltmeler --------------------------------------------
+\addto\captionsturkish{
+    \renewcommand{\contentsname}{İçindekiler}
+    \renewcommand{\listfigurename}{Şekiller Dizini}
+    \renewcommand{\listtablename}{Tablolar Dizini}
+    \renewcommand{\bibname}{Kaynakça}
+    \renewcommand{\appendixname}{Ek}
+    \renewcommand{\chaptername}{Bölüm}
+    \renewcommand{\figurename}{Şekil}
+    \renewcommand{\tablename}{Tablo}
+}
+
+% --- Bölüm başlık biçimlendirme ------------------------------------------
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+    {\normalfont\Large\bfseries}
+    {\chaptertitlename\ \thechapter}{16pt}{\LARGE}
+\titlespacing*{\chapter}{0pt}{0pt}{30pt}
+
+% =========================================================================
+\begin{document}
+
+% ------------------------------ Kapak ------------------------------------
+\input{chapters/00_kapak}
+
+% ------------------------------ Önsöz / Özet -----------------------------
+\frontmatter
+\pagenumbering{roman}
+
+\input{chapters/00_onsoz}
+\input{chapters/00_ozet}
+
+% ------------------------------ İçindekiler ------------------------------
+\tableofcontents
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
+\clearpage
+
+% ------------------------------ Ana metin --------------------------------
+\mainmatter
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapters/01_giris}
+\input{chapters/02_literatur}
+\input{chapters/03_yontem}
+\input{chapters/04_gerceklestirme}
+\input{chapters/05_sonuclar}
+\input{chapters/06_sonuc_ve_oneriler}
+
+% ------------------------------ Kaynakça ---------------------------------
+\bibliographystyle{ieeetr}
+\bibliography{kaynakca}
+
+% ------------------------------ Ekler ------------------------------------
+\appendix
+\input{chapters/ek_a_protokol}
+\input{chapters/ek_b_pin_plani}
+
+\end{document}

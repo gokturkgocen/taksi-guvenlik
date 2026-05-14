@@ -1,0 +1,141 @@
+\chapter{Literatür Özeti}
+\label{ch:literatur}
+
+Bu bölümde, mevcut çalışmanın temellendiği dört eksende literatür
+değerlendirilmiştir: (i) yüz tanıma yöntemleri ve performans metrikleri,
+(ii) gömülü platformlarda (MCU/SBC) gerçek zamanlı uygulama kısıtları,
+(iii) IoT tabanlı acil bildirim sistemleri ve (iv) biyometrik verilerin
+yasal/etik çerçevesi.
+
+\section{Yüz Tanıma Yöntemleri ve Performans Metrikleri}
+
+Modern yüz tanıma; tespit (\emph{detection}), hizalama (\emph{alignment})
+ve özellik çıkarımı (\emph{embedding}) olmak üzere üç ardışık adımdan
+oluşmaktadır. ArcFace mimarisi, son katmandaki softmax fonksiyonuna eklenen
+\emph{additive angular margin} terimi sayesinde, sınıflar arası ayrımı
+kosinüs uzayında belirginleştirir ve LFW, MegaFace gibi standart veri
+kümelerinde insan performansına yakın doğruluk üretir \cite{deng2019arcface}.
+ArcFace'in açık kaynak referans uygulaması InsightFace
+\cite{guo2021insightface}, RetinaFace \cite{deng2020retinaface} ile
+birleştirilmiş hâlde \texttt{buffalo\_l} model paketi olarak
+yayınlanmaktadır; bu paket bu çalışmanın bulut katmanında kullanılmıştır.
+
+Yüz tanıma sistemlerinin performansı tipik olarak iki tamamlayıcı oranla
+nicelendirilir:
+
+\begin{itemize}[itemsep=1pt]
+    \item \textbf{Yanlış Kabul Oranı (FAR --- False Accept Rate):} aranan
+          listede bulunmayan bir kişinin, aranan biri ile eşleştiği vakaların
+          oranı.
+    \item \textbf{Yanlış Reddetme Oranı (FRR --- False Reject Rate):}
+          gerçek bir aranan kişinin sistem tarafından kaçırıldığı vakaların
+          oranı.
+\end{itemize}
+
+Bu iki oran, sistemin karar eşiği (kosinüs benzerliği için $\tau$) bir
+parametre olarak süpürüldüğünde \emph{karşılıklı ödünleşim} (ROC eğrisi)
+şeklinde gözlemlenir. İki oranın eşitlendiği nokta \textbf{Eşit Hata
+Oranı (EER --- Equal Error Rate)} olarak adlandırılır ve sistemin tek
+sayısal kalite göstergesidir.
+
+Tek bir karelik snapshot ile gerçekleştirilen tanıma, hareket bulanıklığı,
+ani aydınlatma değişimi ve geçici tıkanmalardan etkilenir. Birden çok
+kare üzerinde gömme vektörlerinin centroid'ini hesaplama yaklaşımı,
+literatürde yaygın olarak kullanılan ve tek-shot yaklaşıma kıyasla
+gözlemlenebilir doğruluk artışı sağlayan bir tekniktir
+\cite{chen2018multiframe}. Bu çalışmada da 10 karelik öbeklenme tercih
+edilmiştir.
+
+\section{Sahtelik ve Canlılık (Liveness)}
+
+Yüz tanıma sistemlerinin pratik bir güvenlik açığı, basılı fotoğraf veya
+ekran tekrarı (\emph{photo replay}) saldırılarıdır. \emph{Aktif canlılık}
+yöntemleri (kullanıcıdan gülümsemesi, gözünü kırpması istenmesi)
+caydırıcılığı yüksektir ancak kullanıcı etkileşimi gerektirir; bu da
+sürücü için bir dikkat dağıtıcıdır. Bu nedenle, çoklu kare gömme
+vektörlerinin kareler arası standart sapması (\emph{cross-frame standard
+deviation}) bir \textbf{pasif canlılık} göstergesi olarak kullanılmıştır
+\cite{tang2018liveness}. Gerçek bir canlı yüz, mikro-hareketler ve doğal
+yüz kasları nedeniyle düşük ama sıfırdan farklı bir standart sapma
+üretirken; bir fotoğraf replay senaryosunda standart sapma anlamlı
+biçimde azalır. Bu sinyal ek bir model yükü getirmeden, mevcut gömme
+vektörleri üzerinden ücretsiz olarak hesaplanmaktadır.
+
+\section{Gömülü Platformlarda Gerçek Zamanlı Uygulama Kısıtları}
+
+Yüz tanıma iş yükünün gömülü tarafa yerleştirilmesi, üç temel kısıt
+nedeniyle bu projede tercih edilmemiştir:
+
+\begin{enumerate}[label=(\arabic*),itemsep=2pt]
+    \item \textbf{Hesaplama yükü:} ArcFace-R100 yaklaşık 24 milyon
+          parametreye sahip bir CNN'dir. INT8 nicemleme sonrası bile
+          STM32F767 sınıfı bir MCU için (240 MHz, $\leq$~512~KB RAM)
+          gecikme bütçesi aşılmaktadır.
+    \item \textbf{Bellek kısıtı:} buffalo\_l model paketi, INT8'e
+          indirilse dahi 30~MB'ı aşmaktadır; Cortex-M7 MCU'larında
+          bu kalıcı bellek sığasının ötesindedir.
+    \item \textbf{Geliştirme döngüsü:} Sergi süresi (12 gün) gibi sınırlı
+          bir takvimde, hassas nicemleme ve donanım hızlandırma
+          çalışmaları öncelikten düşmektedir.
+\end{enumerate}
+
+Bu kısıtlar, MCU üzerinde yalnızca \emph{olay yönetimi} (state machine,
+LED/buzzer/buton, BLE köprüsü) çalıştırma; tanımayı sunucuya devretme
+kararını desteklemektedir. Aynı yaklaşım, Raspberry Pi 4 gibi
+tek-kart-bilgisayar (SBC) tabanlı çalışmalarda da
+``edge inference + cloud verification'' hibridi olarak
+gözlemlenmektedir \cite{kumar2021edgeface}.
+
+\section{IoT Tabanlı Acil Bildirim Sistemleri}
+
+Acil durum tetikleme bileşeni için iki yaygın yaklaşım vardır:
+(i) doğrudan gömülü cihazdan GSM modülü ile arama/SMS, (ii) BLE üzerinden
+eşli akıllı telefon aracılığı ile arama. İlk yaklaşım, donanım maliyeti
+(SIM800/SIM7600 modülleri), SIM kart yönetimi ve operatör onayı gibi ek
+yükler getirir. İkinci yaklaşım ise sürücünün zaten yanında bulunan akıllı
+telefonu \emph{ağ geçidi} (gateway) olarak kullanır; sistem karmaşıklığını
+ve maliyetini düşürür. Bu çalışma ikinci yaklaşımı benimsemiştir.
+
+Android'in \texttt{Intent.ACTION\_CALL("tel:155")} yöntemi, ek kullanıcı
+etkileşimi olmaksızın çağrı başlatabilen tek mobil API hattıdır; iOS
+sandbox ortamı, kullanıcı onayı olmadan bu çağrıyı engellemektedir
+\cite{android2024telephony}. Bu nedenle hedef platform Android olarak
+belirlenmiştir.
+
+\section{Biyometrik Verilerin Yasal ve Etik Çerçevesi}
+
+Yüz görüntüsü, KVKK kapsamında \emph{özel nitelikli kişisel veri} olarak
+sınıflandırılmaktadır \cite{kvkk2016}. Bu kapsamda toplanan verinin:
+(i) açık rıza ile veya kanunlarda öngörülmüş hâllerde işlenmesi,
+(ii) işlemenin amacına uygun, asgari ölçüde toplanması,
+(iii) öngörülen süre boyunca tutularak sonrasında silinmesi
+gerekmektedir. Mevcut tasarımda yolcu görüntüleri yalnızca işleme süresince
+RAM'de tutulmakta, sunucunun diskine yazılmamaktadır; sonuç dönüşünden
+sonra ilgili oturum yapısı bellekten silinmektedir. Aranan kişiler veri
+tabanına yapılacak girişlerin ise yetkili idari/kolluk birimleri
+tarafından sağlanması, sistem mimarisinin bir varsayımıdır.
+
+GDPR'nin \emph{purpose limitation} ilkesi de \cite{gdpr2018}, sistemin
+yalnızca aranan kişi tespiti amacıyla çalışabileceğini; aynı altyapının
+müşteri profillemesi veya benzeri amaçlarla kullanılamayacağını
+gerektirir. Tasarımda saklanan tek kalıcı veri, aranan kişilere ait
+embedding vektörleridir; ham fotoğraf veri tabanına yazılmaz.
+
+\section{Bu Çalışmanın Konumu}
+
+Yukarıdaki dört eksen değerlendirildiğinde, mevcut çalışmanın özgün
+katkıları şu şekilde özetlenebilir:
+
+\begin{itemize}[itemsep=2pt]
+    \item Açık kaynak InsightFace tabanlı bir tanıma sunucusunun, ESP32-CAM
+          ile birlikte uçtan uca taksi senaryosuna uyarlanması;
+    \item Çoklu kare centroid agregasyonu ve cross-frame standart sapması
+          ile ek model yükü getirmeyen \emph{pasif canlılık} sinyalinin
+          birlikte uygulanması;
+    \item Sürücü etkileşimini tek butona indiren ve dikkat dağıtmayan bir
+          STM32 olay yöneticisi tasarımı;
+    \item Akıllı telefonun BLE ağ geçidi olarak kullanılmasıyla, GSM
+          modülü gerektirmeyen düşük maliyetli bir acil çağrı zinciri;
+    \item Toplam donanım eki maliyetinin 500~TL altında tutulması ve KVKK
+          ilkelerine uygun veri yönetimi.
+\end{itemize}

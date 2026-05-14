@@ -1,0 +1,412 @@
+% =====================================================================
+%  Lisans Bitirme Tezi --- Sunum (Beamer)
+%  Yüz Tanıma Tabanlı Sürücü Güvenlik ve Acil Durum Bildirim Sistemi
+%  Hedef süre: ~15 dakika defans + sergi sunumu
+%
+%  Derleme:  latexmk -pdf main.tex
+% =====================================================================
+\documentclass[aspectratio=169,12pt]{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[turkish]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+
+% --- Renk paleti (poster + tez ile uyumlu) ------------------------------
+\definecolor{ink}{HTML}{11162A}
+\definecolor{accent}{HTML}{8C631A}
+\definecolor{paper}{HTML}{F1ECE0}
+\definecolor{mute}{HTML}{5B6075}
+\definecolor{signal}{HTML}{9C2A21}
+
+% --- Beamer teması: minimal, akademik -----------------------------------
+\usetheme{default}
+\usecolortheme{seahorse}
+\useinnertheme{circles}
+\useoutertheme{infolines}
+
+\setbeamercolor{normal text}{fg=ink, bg=paper}
+\setbeamercolor{title}{fg=ink}
+\setbeamercolor{frametitle}{fg=ink, bg=paper}
+\setbeamercolor{structure}{fg=accent}
+\setbeamercolor{block title}{fg=paper, bg=ink}
+\setbeamercolor{block body}{bg=ink!4, fg=ink}
+\setbeamercolor{item}{fg=accent}
+\setbeamercolor{alerted text}{fg=signal}
+
+\setbeamerfont{frametitle}{series=\bfseries, size=\large}
+\setbeamerfont{title}{series=\bfseries, size=\LARGE}
+
+\setbeamertemplate{navigation symbols}{}    % alt köşedeki navigasyonu sil
+\setbeamertemplate{footline}[frame number]
+
+% --- Başlık metadata -----------------------------------------------------
+\title[Sürücü Güvenliği]{Yüz Tanıma Tabanlı Sürücü Güvenlik ve\\Acil Durum Bildirim Sistemi}
+\subtitle{Driver Safety and Emergency Notification System Based on Facial Recognition}
+\author[G.\ Göçen]{Göktürk Göçen \\ \small Danışman: Prof.\ Dr.\ Aydoğan Savran}
+\institute[Ege Ü.]{Ege Üniversitesi \\ Elektrik-Elektronik Mühendisliği Bölümü}
+\date{Lisans Bitirme Projesi · 2025--2026}
+
+% =========================================================================
+\begin{document}
+
+% --------------------------------------------- 1. Kapak --------------------
+\begin{frame}[plain]
+    \titlepage
+\end{frame}
+
+% --------------------------------------------- 2. Gündem ------------------
+\begin{frame}{Sunum Akışı}
+    \begin{enumerate}[<+->]
+        \item Problem ve motivasyon
+        \item Literatür ve tasarım kararları
+        \item Sistem mimarisi
+        \item Donanım ve yazılım gerçeklemesi
+        \item Ölçüm planı ve sonuçlar
+        \item Sonuç ve gelecek çalışmalar
+    \end{enumerate}
+\end{frame}
+
+% =========================================================================
+% Bölüm 1 — PROBLEM
+% =========================================================================
+\section{Problem ve Motivasyon}
+
+\begin{frame}{Problem}
+    Ticari taksilerde sürücü güvenliği:
+    \begin{itemize}
+        \item Yolcu kimliği sürüş öncesinde \alert{doğrulanmaz}.
+        \item Mevcut çözümler (panik buton, GPS) çoğunlukla
+              \alert{olay sonrası} bilgi sağlar.
+        \item Sürücünün aktif eylem gerektiren sistemler dikkat dağıtıcıdır.
+    \end{itemize}
+
+    \vspace{0.4cm}
+    İki temel ihtiyaç:
+    \begin{enumerate}
+        \item Caydırıcı bir \textbf{kimlik doğrulama} altyapısı.
+        \item Sürücünün dikkatini bozmayan \textbf{otomatik bildirim}.
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{Tasarım Hedefleri}
+    \begin{block}{Başarı Ölçütleri}
+        \begin{itemize}
+            \item Uçtan uca tanıma gecikmesi: $\leq$ 7~s (10-frame burst)
+            \item Eşit Hata Oranı (EER): $\leq$ \%5
+            \item Aydınlatma: 100--600~lx · Mesafe: 30--120~cm
+            \item Acil çağrı tetikleme süresi: $\leq$ 3~s
+            \item Ek donanım maliyeti: $\leq$ 500~TL
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+% =========================================================================
+% Bölüm 2 — LİTERATÜR ve TASARIM KARARLARI
+% =========================================================================
+\section{Literatür ve Kararlar}
+
+\begin{frame}{Yüz Tanıma --- Yöntem Seçimi}
+    \begin{itemize}
+        \item \textbf{ArcFace}: kosinüs benzerliği uzayında additive angular
+              margin --- yüksek doğruluk \alert{[Deng 2019]}
+        \item \textbf{InsightFace buffalo\_l}: açık kaynak, RetinaFace +
+              ArcFace R100
+        \item Kapalı kutu API'lar (AWS Rekognition vb.) reddedildi:
+              KVKK belirsizliği, kontrolsüz model değişiklik riski
+    \end{itemize}
+
+    \vspace{0.3cm}
+    \begin{exampleblock}{Kazanç}
+        Model + eşik bizim kontrolümüzde $\rightarrow$ FAR/FRR ölçümü
+        tezde dolgun savunma; KVKK uyumu doğal.
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Tek Snapshot vs.\ Multi-Frame Burst}
+    \begin{columns}
+    \column{0.5\textwidth}
+        \begin{block}{Tek-shot}
+            \begin{itemize}
+                \item Hareket bulanıklığına duyarlı
+                \item Kırpılan yüze duyarlı
+                \item Liveness sinyali yok
+            \end{itemize}
+        \end{block}
+    \column{0.5\textwidth}
+        \begin{block}{10-frame burst (seçildi)}
+            \begin{itemize}
+                \item 5 FPS × 2 s = 10 kare
+                \item Centroid agregasyon $\rightarrow$ robust
+                \item Cross-frame $\sigma$ $\rightarrow$ pasif canlılık
+            \end{itemize}
+        \end{block}
+    \end{columns}
+
+    \vspace{0.4cm}
+    Maliyeti yalnızca $\sim$5--7~s gecikme --- yolcu binişi başına bir
+    işlem, kullanıcı deneyimi için uygun.
+\end{frame}
+
+\begin{frame}{Acil Çağrı: BLE Köprü vs.\ GSM}
+    \begin{columns}
+    \column{0.5\textwidth}
+        \begin{block}{GSM modülü (SIM800/7600)}
+            \begin{itemize}
+                \item +Maliyet: 250+ TL
+                \item +SIM kart yönetimi
+                \item +Operatör onayı
+            \end{itemize}
+        \end{block}
+    \column{0.5\textwidth}
+        \begin{block}{BLE + Telefon (seçildi)}
+            \begin{itemize}
+                \item Sürücünün telefonu zaten orada
+                \item HM-10 \euro 3 modülü
+                \item Android \texttt{Intent.ACTION\_CALL}
+            \end{itemize}
+        \end{block}
+    \end{columns}
+
+    \vspace{0.4cm}
+    iOS yerine Android: \texttt{ACTION\_CALL}'a izin verir; iOS sandbox
+    kullanıcı dokunması ister.
+\end{frame}
+
+% =========================================================================
+% Bölüm 3 — SİSTEM MİMARİSİ
+% =========================================================================
+\section{Sistem Mimarisi}
+
+\begin{frame}{Uçtan Uca Mimari}
+    \begin{center}
+    \begin{tikzpicture}[
+        node distance=8mm and 14mm,
+        box/.style={draw=ink, thick, minimum width=24mm, minimum height=10mm,
+                    align=center, font=\scriptsize\sffamily},
+        cloud/.style={draw=ink, thick, minimum width=30mm, minimum height=10mm,
+                      align=center, font=\scriptsize\sffamily, fill=ink!5},
+        arr/.style={-{Latex[length=2mm]}, thick, ink},
+        arracc/.style={-{Latex[length=2mm]}, thick, accent},
+        arrsig/.style={-{Latex[length=2mm]}, thick, signal},
+        lab/.style={font=\tiny\ttfamily, ink},
+    ]
+    \node[box] (esp) {ESP32-CAM\\\tiny 10-frame burst};
+    \node[box, below=of esp] (stm) {STM32 F767ZI\\\tiny olay yöneticisi};
+    \node[box, right=of esp] (wifi) {Wi-Fi};
+    \node[cloud, right=of wifi] (ec2) {AWS EC2\\\tiny Flask + InsightFace};
+    \node[box, below=of ec2] (phone) {Android\\\tiny 155 dial};
+    \node[box, left=of phone] (hm10) {HM-10 BLE};
+
+    \draw[arr] (esp.east) -- node[lab, above]{HTTP POST} (wifi.west);
+    \draw[arr] (wifi.east) -- (ec2.west);
+    \draw[arracc] (ec2.west) to[bend left=30] node[lab, below]{JSON} (wifi.east);
+    \draw[arr] (esp) -- node[lab, right]{UART1} (stm);
+    \draw[arr] (stm.east) -- node[lab, above]{UART2} (hm10.west);
+    \draw[arr] (hm10.east) -- node[lab, above]{BLE} (phone.west);
+    \draw[arrsig] (phone.south) -- ++(0,-7mm) node[lab, right]{GSM · 155};
+    \end{tikzpicture}
+    \end{center}
+
+    Üç bölge: Araç içi · Bulut tanıma · Acil çağrı
+\end{frame}
+
+\begin{frame}{Veri Akışı --- 10-Frame Burst}
+    \begin{enumerate}
+        \item \textbf{TARA} basıldı $\rightarrow$ STM SARI LED + HM-10 \texttt{SCANNING}
+        \item STM $\rightarrow$ ESP \texttt{CAPTURE} (UART1)
+        \item ESP-CAM 5 FPS × 2 s = 10 JPEG yakalar, hepsi EC2'ye HTTP POST
+        \item Server her frame'de \textbf{kalite filtresi} (blur, yaw, alan, det)
+        \item Geçerli embedding'lerin \textbf{centroid}'i $\rightarrow$
+              cosine sim $\geq$ 0.40 $\rightarrow$ MATCH
+        \item ESP $\rightarrow$ STM \texttt{1;name;sim} CSV
+        \item STM $\rightarrow$ HM-10 $\rightarrow$ Android \texttt{MATCH:..}
+        \item Android: \texttt{Intent.ACTION\_CALL("tel:155")}
+    \end{enumerate}
+
+    \vspace{0.3cm}
+    Toplam: \alert{$\sim$5--7~s}
+\end{frame}
+
+% =========================================================================
+% Bölüm 4 — DONANIM ve YAZILIM GERÇEKLEMESİ
+% =========================================================================
+\section{Gerçekleme}
+
+\begin{frame}{Donanım Listesi}
+    \small
+    \begin{tabularx}{\linewidth}{X c c}
+    \toprule
+    \textbf{Parça} & \textbf{Adet} & \textbf{Fiyat}\\
+    \midrule
+    STM32 NUCLEO-F767ZI         & 1 & (Mevcut)\\
+    ESP32-CAM (AI-Thinker, OV3660) & 1 & 120 TL\\
+    HM-10 BLE                   & 1 & 80 TL\\
+    LED + buzzer + buton + breadboard & --- & $\sim$135 TL\\
+    USB-TTL, jumper, headers    & --- & 60 TL\\
+    \midrule
+    \textbf{Toplam ek donanım}  &   & \textbf{$\approx$ 395 TL} \\
+    \bottomrule
+    \end{tabularx}
+
+    \vspace{0.4cm}
+    Hedef bütçenin (500 TL) altında.
+\end{frame}
+
+\begin{frame}{Sunucu --- Flask + InsightFace}
+    \begin{itemize}
+        \item Python 3.11 · Flask · Gunicorn (-w 1)
+        \item AWS EC2 m7i-flex.large · Frankfurt
+        \item Tek endpoint: \texttt{POST /search}
+        \item Sergi sertleştirmeleri:
+            \begin{itemize}
+                \item Opsiyonel \texttt{X-Shared-Secret} auth
+                \item Yapılandırılmış JSON günlük (per-burst)
+                \item \texttt{/metrics} endpoint --- p50/p95/maks latency
+            \end{itemize}
+    \end{itemize}
+
+    \vspace{0.3cm}
+    \begin{exampleblock}{Gunicorn -w 1 zorunluluğu}
+        Oturum state'i in-memory per-process tutuluyor. 2+ worker burst'ün
+        karelerini farklı süreçlere dağıtır $\rightarrow$ agregasyon kırılır.
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{STM32 Olay Yöneticisi}
+    \begin{columns}
+    \column{0.55\textwidth}
+        \begin{itemize}
+            \item HAL'dan soyutlanmış \textbf{taşınabilir C99}
+            \item Callback vtable: LED, buzzer, UART, clock
+            \item 6 durum: IDLE / SCANNING / MATCH / NOMATCH / PANIC / NETERR
+            \item PANIC her zaman armed
+        \end{itemize}
+    \column{0.45\textwidth}
+        \begin{exampleblock}{Host-side birim test}
+            \texttt{gcc -O2 -Wall} ile derlenir; \\
+            12 senaryo deterministik geçer.\\[2pt]
+            Donanım üzerinde flash--flash döngüsü minimize edildi.
+        \end{exampleblock}
+    \end{columns}
+
+    \vspace{0.3cm}
+    Modül \texttt{Core/Inc/state\_machine.h} ve \texttt{Core/Src/state\_machine.c}
+    olarak mevcut CubeIDE projesine drop-in.
+\end{frame}
+
+\begin{frame}{Android --- TaxiGuard v2}
+    \begin{itemize}
+        \item Kotlin + Jetpack Compose · min SDK 26
+        \item \texttt{Hm10Service} foreground servis (BLE central)
+        \item \texttt{FrameParser}: ASCII satır $\rightarrow$ \texttt{MatchEvent}
+        \item \texttt{EmergencyDialer}: \texttt{Intent.ACTION\_CALL("tel:155")}
+        \item \alert{Dev mode}: ``Simulate MATCH'' butonu, donanım olmadan
+              tek telefonda parse + dial akışını test eder
+    \end{itemize}
+
+    \vspace{0.3cm}
+    HM-10 elimize geldiğinde tek değişiklik: BLE scanner gerçek modülü
+    bulup bağlanacak. Diğer her şey aynı.
+\end{frame}
+
+% =========================================================================
+% Bölüm 5 — ÖLÇÜM ve SONUÇLAR
+% =========================================================================
+\section{Ölçüm ve Sonuçlar}
+
+\begin{frame}{Ölçüm Harness'ı}
+    \texttt{eval/far\_frr.py}:
+    \begin{itemize}
+        \item Bir veri seti klasörü (\texttt{<isim>/<foto>.jpg}) tarar
+        \item Her fotoğraf 10-frame burst olarak \texttt{/search}'e gönderilir
+        \item Eşik $\tau \in [0, 1]$ üzerinde sweep
+        \item EER + en iyi operating point (FAR $\leq$ 1\%) raporlanır
+        \item ROC eğrisi PNG olarak kaydedilir
+    \end{itemize}
+
+    \vspace{0.3cm}
+    Çıktılar tezin Tablo 5.x'larına doğrudan kaynak olur.
+\end{frame}
+
+\begin{frame}{Ölçüm Planı --- Üç Eksen}
+    \begin{enumerate}
+        \item \textbf{Aydınlatma}:
+              100~lx (alacakaranlık) · 300~lx (ofis) · 600~lx (gün ışığı)
+        \item \textbf{Mesafe}:
+              30--60~cm · 60--90~cm · 90--120~cm
+        \item \textbf{Pasif canlılık}:
+              gerçek yüz vs.\ ekran replay
+    \end{enumerate}
+
+    \vspace{0.3cm}
+    Test seti: ekip + gönüllüler (5--8 kişi).
+    Sergi takvimi içinde uygulanabilir kapsam.
+\end{frame}
+
+\begin{frame}{Mevcut Durum (Sergi Öncesi)}
+    \small
+    \begin{tabular}{l l}
+    \toprule
+    \textbf{Aşama} & \textbf{Durum}\\
+    \midrule
+    EC2 sunucu                             & \alert{Canlı, smoke OK}\\
+    ESP32-CAM Wi-Fi + HTTP POST + JSON     & \alert{Test edildi}\\
+    HM-10 BLE (telefon + nRF Connect)      & \alert{Test edildi}\\
+    STM32 build + flash + onboard LED      & \alert{Test edildi}\\
+    STM32 state machine (host-side)        & \alert{12/12 test geçti}\\
+    Android dev-mode 155 dial              & \alert{Test edildi}\\
+    \hline
+    STM + ESP birlikte güç + UART köprüsü  & Sergi haftası\\
+    HM-10 STM UART2 entegrasyonu           & Sergi haftası\\
+    FAR/FRR ölçümü                         & Sergi haftası\\
+    \bottomrule
+    \end{tabular}
+\end{frame}
+
+% =========================================================================
+% Bölüm 6 — SONUÇ
+% =========================================================================
+\section{Sonuç}
+
+\begin{frame}{Özgün Katkılar}
+    \begin{itemize}
+        \item Açık kaynak InsightFace + ESP32-CAM ile düşük maliyetli
+              taksi senaryosu entegrasyonu
+        \item Telefon BLE ağ geçidi $\rightarrow$ GSM modülü gerektirmeden 155 çağrısı
+        \item Cross-frame $\sigma$ ile ek model olmadan pasif canlılık
+        \item HAL'dan soyutlanmış, host-side test edilebilen taşınabilir
+              STM32 durum makinesi
+        \item Otomatik FAR/FRR ölçüm aracı $\rightarrow$ tekrarlanabilir tablolar
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Gelecek Çalışmalar}
+    \begin{enumerate}
+        \item \textbf{Faz 2}: Caddy + Let's Encrypt $\rightarrow$ HTTPS; \texttt{SHARED\_SECRET}
+              aktif (~1/2 gün iş)
+        \item \textbf{Edge inference}: ESP32-S3 üzerinde nicemlenmiş ön-eleme
+        \item \textbf{Filo entegrasyonu}: MQTT/WebSocket olay panosu
+        \item \textbf{Aktif canlılık}: arka koltukta sessiz kafa-jest doğrulaması
+        \item \textbf{Yasal çerçeve}: KVKK açık rıza prosedürü + yetkili
+              veri tabanı erişimi
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}[plain]
+    \begin{center}
+        \vspace{1.2cm}
+        {\Huge \bfseries Teşekkürler}\\[1cm]
+        {\Large Sorular?}\\[2cm]
+        \small Göktürk Göçen \\
+        qgokturk@gmail.com \\[6pt]
+        Danışman: Prof.\ Dr.\ Aydoğan Savran
+    \end{center}
+\end{frame}
+
+\end{document}

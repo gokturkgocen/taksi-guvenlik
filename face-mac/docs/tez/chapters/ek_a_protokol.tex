@@ -1,0 +1,112 @@
+\chapter{Mesaj Protokolleri}
+\label{app:protokol}
+
+Bu ek, sistemde tanımlanan tüm UART ve BLE mesaj çerçevelerini tek yerde
+listeler. Mesajlar üç hat üzerinde dolaşmaktadır:
+
+\begin{itemize}[itemsep=1pt]
+    \item \textbf{UART1} (115200~bps, 8N1): STM32 $\leftrightarrow$ ESP32-CAM
+    \item \textbf{UART2} (9600~bps, 8N1): STM32 $\leftrightarrow$ HM-10
+    \item \textbf{BLE GATT} (FFE0/FFE1): HM-10 $\leftrightarrow$ Telefon
+          (transparent, UART2'nin baytları aynen iletilir)
+\end{itemize}
+
+\section{UART1 --- STM32 / ESP32-CAM}
+
+\paragraph{STM32 $\rightarrow$ ESP32-CAM}
+
+\begin{tabular}{l l}
+\toprule
+\textbf{Komut} & \textbf{Anlam}\\
+\midrule
+\texttt{CAPTURE\textbackslash n}    & 10-frame burst başlat ve sunucuya gönder\\
+\bottomrule
+\end{tabular}
+
+\paragraph{ESP32-CAM $\rightarrow$ STM32 (RESULT)}
+
+Burst tamamlandığında veya hata oluştuğunda tek satırlık CSV:
+
+\begin{tabular}{l l}
+\toprule
+\textbf{Satır}                              & \textbf{Anlam}\\
+\midrule
+\texttt{1;<name>;<sim>\textbackslash n}     & MATCH; isim ve similarity\\
+\texttt{0;;<sim>\textbackslash n}           & NOMATCH; en yakın similarity\\
+\texttt{ERR:<tag>\textbackslash n}          & Hata; tag örnek: no\_wifi, http\_500, json\_parse, timeout\\
+\bottomrule
+\end{tabular}
+
+\section{UART2 ve BLE --- STM32 / HM-10 / Telefon}
+
+HM-10 transparent çalıştığı için STM32'nin UART2'ye yazdığı satırlar BLE
+notification olarak telefona iletilir.
+
+\begin{tabular}{l l}
+\toprule
+\textbf{Satır}                                   & \textbf{Anlam}\\
+\midrule
+\texttt{SCANNING\textbackslash n}                & TARA başlangıcı\\
+\texttt{MATCH:<name>;<sim>\textbackslash n}      & Pozitif eşleşme (telefon 155'i arar)\\
+\texttt{NOMATCH\textbackslash n}                 & Negatif burst\\
+\texttt{PANIC\textbackslash n}                   & PANİK butonu (telefon 155'i arar)\\
+\texttt{NETERR\textbackslash n}                  & Scan timeout veya transport hata\\
+\texttt{HB\textbackslash n}                      & 5\,s aralıkla kalp atışı (yalnızca IDLE'da)\\
+\bottomrule
+\end{tabular}
+
+\section{HTTP --- ESP32-CAM / Sunucu}
+
+\paragraph{İstek.}
+
+\begin{lstlisting}[language=none, basicstyle=\ttfamily\footnotesize]
+POST /search HTTP/1.1
+Host: 18.192.45.175:8000
+Content-Type: application/octet-stream
+X-Session-Id: 7c5f9a3b-...-e1
+X-Frame-Index: 7
+X-Frame-Total: 10
+X-Shared-Secret: <token>     # opsiyonel
+
+<JPEG bytes>
+\end{lstlisting}
+
+\paragraph{Ara kare yanıtı.}
+
+\begin{lstlisting}[language=none, basicstyle=\ttfamily\footnotesize]
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{"status":"continue","frames_received":7,"frames_total":10,"quality_ok_this_frame":true}
+\end{lstlisting}
+
+\paragraph{Son kare yanıtı.}
+
+\begin{lstlisting}[language=none, basicstyle=\ttfamily\footnotesize]
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "match": true,
+  "name": "Ali_Yilmaz",
+  "similarity": 0.9437,
+  "frames_used": 10,
+  "frames_total": 10,
+  "liveness_score": 0.014823
+}
+\end{lstlisting}
+
+\paragraph{Hata yanıtları.}
+
+\begin{tabular}{l l l}
+\toprule
+\textbf{Kod} & \textbf{Body} & \textbf{Anlam}\\
+\midrule
+400 & \texttt{\{"error":"bad\_index\_headers"\}}    & X-Frame-* başlıkları geçersiz\\
+400 & \texttt{\{"error":"missing\_session\_id"\}}   & X-Session-Id yok veya boş\\
+400 & \texttt{\{"error":"bad\_frame\_indices"\}}    & idx > total veya $\leq$ 0\\
+400 & \texttt{\{"error":"image\_too\_small"\}}      & JPEG $<$ 1\,KB\\
+401 & \texttt{\{"error":"unauthorized"\}}           & X-Shared-Secret eşleşmedi (auth aktif)\\
+500 & \texttt{\{"error":"session\_lost"\}}          & Oturum timeout sonrası temizlenmiş\\
+\bottomrule
+\end{tabular}
