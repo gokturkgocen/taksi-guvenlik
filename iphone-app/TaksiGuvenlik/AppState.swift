@@ -1,62 +1,67 @@
 import SwiftUI
+import Foundation
 
-/// Uygulama genelinde paylaşılan oturum durumu. Login + sekme.
+/// Single shared state object for the minimal taxi-safety client.
+/// The fields with the "compat shim" comment below exist only so the older
+/// SwiftUI views (LoginView, HomeView, LogsView, SettingsView, BottomNavView,
+/// TripCard) still compile alongside the new minimal ContentView. They are
+/// not wired to the live screen anymore.
 @Observable
 final class AppState {
-    /// Aktif sekme.
-    enum Tab: Hashable {
-        case home, logs, settings
-    }
-
-    var loggedIn: Bool = false
-    var tab: Tab = .home
-
-    /// Şoför bilgileri (giriş ekranından).
-    var plate: String = "34 ABC 123"
-    var firstName: String = "Ahmet"
-    var lastName: String = "Yıldız"
-    var driverID: String = "4837"
-
-    /// BLE durum bayrakları (gerçek BLEManager bunları günceller).
+    // Active UI state — used by ContentView.
     var bleConnected: Bool = false
+    var currentState: String = "—"
+    var matchName: String = ""
+    var matchSimilarity: Double = 0.0
     var lastHeartbeat: Date? = nil
-    /// Aktif alarm (MATCH veya PANIC alındığında set olur).
+    var eventLog: [LogEntry] = []
+    var alertActive: Bool = false
+
+    func append(_ line: String) {
+        let entry = LogEntry(text: line, timestamp: Date())
+        eventLog.insert(entry, at: 0)
+        if eventLog.count > 60 { eventLog.removeLast(eventLog.count - 60) }
+    }
+
+    // ─────────── compat shim — keep legacy views compiling ───────────
+    enum Tab: Hashable { case home, logs, settings }
+    var loggedIn: Bool = true
+    var tab: Tab = .home
+    var plate: String = ""
+    var firstName: String = ""
+    var lastName: String = ""
+    var driverID: String = ""
     var activeAlert: AlertEvent? = nil
-
-    func login() {
-        loggedIn = true
-        tab = .home
-    }
-
-    func logout() {
-        loggedIn = false
-    }
+    func login()  { loggedIn = true }
+    func logout() { loggedIn = false }
 }
 
-/// Tek bir alarm olayı.
+struct LogEntry: Identifiable, Hashable {
+    let id = UUID()
+    let text: String
+    let timestamp: Date
+}
+
+/// Compat shim used by the legacy HomeView/TripCard previews.
 struct AlertEvent: Identifiable, Hashable {
     enum Kind: Hashable {
         case match(name: String, similarity: Double)
         case panic
     }
-
     let id = UUID()
     let kind: Kind
     let timestamp: Date
 
     var headline: String {
         switch kind {
-        case .match(let name, _): return "Şüpheli yolcu eşleşmesi"
+        case .match: return "Şüpheli yolcu eşleşmesi"
         case .panic: return "Panik butonu basıldı"
         }
     }
-
     var subtitle: String {
         switch kind {
-        case .match(let name, let sim):
-            return "\(name) · güven %\(Int(sim * 100))"
-        case .panic:
-            return "Acil çağrı tetikleniyor"
+        case .match(let name, let sim): return "\(name) · güven %\(Int(sim * 100))"
+        case .panic: return "Acil çağrı tetikleniyor"
         }
     }
 }
