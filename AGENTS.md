@@ -1,154 +1,147 @@
 # AGENTS.md — AI agent (Codex / Claude / etc.) context
 
-> **READ FIRST:** `face-mac/CLAUDE.md` — comprehensive project documentation. This file is a high-level brief; details live there.
+> **READ FIRST:** `face-mac/CLAUDE.md` — comprehensive project documentation, single source of truth. This file is a high-level brief; details and full pin/protocol/decision tables live there.
 
 ## Communication rules
 - **Türkçe konuş.** Kullanıcı Türk, projenin sohbet dili Türkçe. Kod, commit mesajı, dosya içi yorum İngilizce kalır.
 - Kısa ve direkt cevap ver.
-- Onay almadan büyük mimari değişiklik yapma. **Mimari kilitli (2026 Mayıs).**
+- Onay almadan büyük mimari değişiklik yapma. **Mimari kilitli (Plan B v2 — 2026 Mayıs).**
 - Yapılan her kod değişikliğini commit + push et, anlamlı commit mesajı yaz.
 - Emin olmadığın API/parametreyi araştır, varsayım yapma.
 
 ## Proje özeti
-**Ne:** Takside arka koltuğa oturan yolcunun yüzünü 10 frame'lik kısa burst ile tarayıp, EC2'de host ettiğimiz InsightFace tabanlı sunucuda suçlu yüz veritabanıyla karşılaştırmak. Eşleşme varsa Android telefon BLE üzerinden komut alıp otomatik **155** çağrısı.
+**Ne:** Takside arka koltuğa oturan yolcunun yüzünü 10 frame'lik kısa burst ile tarayıp, EC2'de host ettiğimiz InsightFace tabanlı sunucuda suçlu yüz veritabanıyla karşılaştırmak. Eşleşme varsa şoförün iPhone'una BLE üzerinden bildirim, otomatik 155 çağrı ekranı.
 
 **Kime:** Ege Üniversitesi EE Bölümü bitirme tezi (2025–2026).
 **Danışman:** Aydoğan Savran.
-**Teslim:** 12 gün içinde sunum + sergi.
-**Test telefonu:** Samsung Galaxy S20 FE.
-**Geliştirme bilgisayarları:** Mac (kullanıcı: `/Users/gokturkgocen/Bitirme/`), partner Mac (`/Users/ekinagaoglu/bitirme/`).
+**Test telefonu:** iPhone 16.
+**Geliştirme Mac'leri:** `/Users/gokturkgocen/Bitirme/`, partner `/Users/ekinagaoglu/bitirme/`.
 
-## Nihai mimari (kilitli — **Plan B aktif**)
-
-> Plan A (STM-merkezli + standalone DVP OV5640 + DCMI) terkedildi. Çankaya'da DVP/parallel OV5640
-> modülü bulunamadı, DCMI entegrasyonu için kabul edilebilir süreyi aştı. **Plan B kilitli**:
-> kamera + Wi-Fi tek board'da ESP32-CAM (AI-Thinker, OV3660), STM32 olay orkestratörü olarak
-> kalır. Bütün firmware ve doküman bu mimari üzerine kurulu. **Detayları `face-mac/CLAUDE.md`.**
+## Nihai mimari (Plan B v2 — kilitli)
 
 ```
    Yolcu yüzü ─► ESP32-CAM (AI-Thinker, OV3660)
-                 │ 5 FPS × 2 s = 10 frame burst
-                 │ Wi-Fi STA · HTTP POST ─► EC2 m7i-flex.large (eu-central-1)
-                 │                          Flask + InsightFace buffalo_l
-                 │                          18.192.45.175:8000 (Faz 1)
-                 │                          multi-frame centroid + passive liveness
-                 │                          pickle DB
-                 │ UART (115200) "CAPTURE" / "RESULT"
+                 │ Wi-Fi STA · HTTP POST ─► EC2 (Flask + InsightFace buffalo_l)
+                 │                          18.192.45.175:8000  eu-central-1
+                 │
+                 │ USART (Arduino D0/D1, 115200, ASCII satır)
+                 │ "CAPTURE" ⇄ "RESULT:..." ⇄ STM event mesajları
+                 │
+                 ├─► BLE peripheral "TaxiGuard" (FFE0/FFE1, notify+write, MTU 247)
+                 │      └─► iPhone 16 (SwiftUI app), MATCH→tel://155 dialer
                  ▼
-   STM32 NUCLEO-F767ZI
-                 │ TARA + PANİK buton (EXTI)
-                 │ Yeşil/Sarı/Kırmızı LED + buzzer
-                 │ State machine: IDLE/SCAN/MATCH/NOMATCH/PANIC/NETERR
-                 │ UART2 (9600)
-                 ▼
-   HM-10/HM-19 ──BLE──► Android (Samsung S20 FE)
-                        Intent.ACTION_CALL("tel:155")
+   STM32 NUCLEO-F767ZI (HSI×PLL → 216 MHz)
+                 │ TARA = B1 USER (PC13)  ·  PANİK = PA0 (harici)
+                 │ LED'ler onboard + harici buzzer
+                 │ State machine: IDLE/SCANNING/MATCH/NOMATCH/PANIC/NETERR
 ```
 
-## Veri akışı (10-frame burst)
-1. Sürücü TARA butonu → STM SARI LED + HM-10 üzerinden "SCANNING\n"
-2. STM, UART üzerinden ESP32-CAM'e "CAPTURE" komutu yollar
-3. ESP32-CAM 5 FPS × 2 sn = 10 frame yakalar, her frame'i Wi-Fi üzerinden EC2'ye POST eder
-   (X-Session-Id, X-Frame-Index, X-Frame-Total başlıkları)
-4. 10. frame'de server agregasyon (kalite filtresi → ArcFace embedding → centroid → cosine sim
-   → DB match → passive liveness)
-5. ESP sonucu CSV `"1;name;0.94"` olarak STM'e UART üstünden döner
-6. STM: MATCH → KIRMIZI LED + buzzer + HM-10 → "MATCH:..\n"; NOMATCH → YEŞİL LED
-7. Telefon BLE notify alır, MATCH ise `Intent.ACTION_CALL("tel:155")` otomatik arar
-
-Toplam ~5-7 sn. Latency önemsiz.
-
-## Faz 1 (mevcut) vs Faz 2 (opsiyonel)
-
-**Faz 1 — EC2 HTTP public IP:** `http://18.192.45.175:8000`, TLS yok, port 8000 açık. Demo + test için yeterli.
-
-**Faz 2 — Domain + HTTPS:** Caddy/nginx + Let's Encrypt, ESP `USE_TLS=1` + ISRG Root X1. ESP `config.h` swap + reflash. ~half day iş.
+**HM-10 atıldı.** ESP-CAM'in dahili BLE'si telefon-yönü işini görüyor.
 
 ## Kilit kararlar (LOCK)
 
 | Karar | Neden |
 |---|---|
-| Kendi sunucumuz + buffalo_l (AWS Rekognition **DEĞİL**) | Modeli kontrol ediyoruz, KVKK temiz, FAR/FRR tezde dolgun savunma |
+| Kendi sunucumuz + buffalo_l (AWS Rekognition **DEĞİL**) | Modeli kontrol, KVKK temiz, FAR/FRR tezde dolgun |
 | Multi-frame burst 10 frame (tek-shot **DEĞİL**) | Robust + bedava passive liveness |
-| ESP32-CAM AI-Thinker + OV3660 (**Plan B kilitli**) | DVP OV5640 modülü bulunamadı; kamera + Wi-Fi tek board'da, STM olay orkestratörü |
-| STM32 NUCLEO-F767ZI olay yöneticisi | Buton/LED/buzzer/HM-10; tanıma server'da, kamera ESP'te |
-| HM-10/HM-19/AT-09 BLE (HC-05 **DEĞİL**) | Komut data tiny, BLE yeter |
-| 921600 UART STM↔ESP (SPI değil) | Basit, debug rahat |
-| Intent.ACTION_CALL (tel://dialer **DEĞİL**) | Otomatik 155 |
-| Android (iPhone **DEĞİL**) | iOS sandbox otomatik aramayı engelliyor; iphone-app rafta Plan B |
+| ESP32-CAM (Plan B kilitli, standalone OV5640 **DEĞİL**) | DVP modülü bulunamadı; tek board hem kamera hem BLE |
+| ESP-CAM entegre BLE (HM-10 **DEĞİL**) | Tek board, daha az kablo, Morpho karmaşası yok |
+| USART6 Arduino D0/D1 (USART1 Morpho **DEĞİL**) | Silkscreen kolay identify |
+| HSI×PLL → 216 MHz (HSE bypass **DEĞİL**) | HAL HSE_VALUE makrosu 25 MHz, NUCLEO 8 MHz, BRR sapıtıyor |
+| iPhone SwiftUI (Android **şu an değil**) | iPhone elde, iOS dialer tek-tık demo için pratik |
+| `tel://155` dialer (auto-call DEĞİL) | iOS sandbox tam otomatik vermez; tek-tık onay tezde "yanlış pozitif koruma" |
 | EC2 m7i-flex.large eu-central-1 | Free Plan içinde en güçlü, $200 hediye krediyle ~$23/12 gün |
-| Gunicorn -w 1 | Session state in-memory per-process; -w 2+ burst'u kırar |
+| Gunicorn `-w 1` | Session state in-memory; multi-worker burst'u kırar |
+| Kalite filtresi min_blur=10 | ESP-CAM küçük lens VGA için 50 hep eler |
+| BLE MTU 247 | Varsayılan 23 mesajları 20 byte'ta kesiyor |
 
-## Plan B — ESP32-CAM (eğer STM+OV5640+DCMI tıkanırsa)
+## Red flag — sapma sinyalleri (HAYIR de)
+- AWS Rekognition'a dönüş
+- HM-10'u geri ekleme
+- Standalone OV5640 + DCMI
+- HSE bypass (HAL HSE_VALUE bozuk)
+- USART1/Morpho ile ESP-CAM
+- Android app yazımı (demo zamanı yetmez)
+- buffalo_l yerine başka model
+- MiniFASNet anti-spoof ekleme
+- STM32'de TFLite face recog
+- JPEG yerine raw RGB
+- Pi 4 ekleme
+- Gunicorn worker artırma
+- ESP-CAM'i STM 5V'tan besleme (brown-out)
 
-OV5640+DCMI 1-2 günden fazla tıkanırsa: ESP32-CAM kamerasıyla yakalar, Wi-Fi'dan POST'lar. STM32 sadece LED/buzzer/buton/HM-10. Mimari biraz değişir, "STM=olay orkestratörü, ESP32-CAM=delege edilmiş kamera+ağ peripheral" diye savunulur.
+## Donanım (BOM)
+- STM32 NUCLEO-F767ZI ✓
+- ESP32-CAM AI-Thinker (OV3660) ✓
+- ESP32-CAM-MB programlama dock'u ✓
+- Aktif buzzer 5V ✓
+- iPhone 16 (kullanıcının kendisi) ✓
+- Jumper kablolar ✓
+- **Yedek/kullanılmıyor:** ESP32-WROOM-32 DevKit, HM-10, FT232 USB-TTL, harici LED'ler (onboard yetiyor)
 
-## Red flag — sapma sinyalleri
-- "AWS Rekognition'a geri dönelim" → HAYIR, silindi
-- "Lambda yedek olarak dursun" → scope büyür, gerek yok
-- "Yerel + cloud hibrit" → Faz 1 zaten "yerel"in karşılığı
-- "iPhone app'i de Android'le paralel sürdürelim" → arşiv, tek hedef Android
-- "buffalo_l yerine başka model" → FAR/FRR ölçümü tezde değer
-- "MiniFASNet'i geri ekleyelim" → multi-frame std zaten passive liveness
-- "STM32'de TFLite face recog" → F767ZI yetmez
-- "JPEG yerine raw RGB" → UART boğulur
-- "Pi 4 ekleyelim" → ESP32 yeterli
-- "Gunicorn worker artıralım" → session state kırılır
+## Çalışan akış (uçtan uca verified)
+
+Şoför B1 USER butonuna basar → STM "CAPTURE\n" + "SCANNING\n" USART6'dan ESP-CAM'e gönderir → ESP "SCANNING" mesajını BLE'den iPhone'a forward eder → ESP flash LED açar, 10 frame yakalar, EC2'ye POST'lar → EC2 InsightFace agregasyon yapar (centroid + cosine sim) → JSON döner → ESP "RESULT:1;Gokturk;0.66\n" UART'tan STM'e → STM state MATCH'e geçer, KIRMIZI LED yakar, "MATCH:Gokturk;0.66\n" ESP'ye gönderir → ESP BLE notify ile iPhone'a yollar → iPhone uygulaması büyük kırmızı kart gösterir + `tel://155` URL'i açar → iOS dialer açılır, şoför yeşil butona tek tık.
+
+## Wiring (sade)
+
+```
+ESP-CAM IO13 ────► STM D0 (PG9 USART6 RX)
+ESP-CAM IO14 ◄──── STM D1 (PG14 USART6 TX)
+ESP-CAM GND ─────► STM GND (ortak referans)
+ESP-CAM 5V ◄──── kendi dock USB'sinden (STM 5V'tan değil, brown-out yapıyor)
+STM USB ────────► Mac (ST-LINK, debug + flash)
+```
 
 ## Dosya yapısı
 
 ```
-Bitirme/                                  # repo kökü
+Bitirme/
 ├── AGENTS.md                             # bu dosya
 ├── Ekin_Ag_aog_lu_Gelis_imRaporu.pdf     # gelişme raporu, DONDURULDU
-├── taxi-key.pem                          # EC2 SSH key (gitignore'da)
+├── taxi-key.pem                          # EC2 SSH key (.gitignore)
 ├── .gitignore
 │
-├── face-mac/                             # ana proje klasörü
+├── face-mac/
 │   ├── CLAUDE.md                         # ⭐ ANA DOKÜMANTASYON
-│   ├── server/                           # ⭐ Flask + InsightFace (EC2'de canlı)
-│   ├── esp32-cam/                        # ⭐ PlatformIO firmware (Plan B aktif)
-│   └── stm32/                            # ⭐ CubeIDE firmware (donanım üstünde test edildi)
+│   ├── embeddings.pkl                    # EC2 DB snapshot
+│   ├── server/                           # Flask + InsightFace (EC2'de canlı)
+│   ├── esp32-cam/                        # PlatformIO Arduino firmware
+│   └── Stm32/taxi_guvenlik/              # CubeIDE projesi
 │
-├── poster/                               # ⭐ Bitirme sergi posteri (70×100 cm)
-│   ├── poster.html                       # ana poster (akademik ETH/MIT tarzı)
-│   └── poster_yeni.html                  # +Pin planı, FAR/FRR matrisi, QR ekli versiyon
+├── poster/                               # sergi posteri HTML
 │
-└── iphone-app/                           # Eski iOS denemesi — DOKUNMA
+└── iphone-app/                           # SwiftUI iPhone app (aktif)
+    ├── project.yml                       # XcodeGen
+    ├── TaksiGuvenlik/                    # 4 dosya: App, AppState, BLEManager, ContentView
+    └── TaksiGuvenlik.xcodeproj/
 ```
 
-## Aktif iş paketleri (güncel — 2026-05)
+## Aktif iş paketleri (durum: 2026-05-14)
+1. ✅ EC2 sunucu deploy + uçtan uca AWS test
+2. ✅ ESP-CAM Wi-Fi + HTTP POST + camera burst + JSON parse
+3. ✅ STM 216 MHz HSI×PLL clock + USART3 VCP printf
+4. ✅ STM ↔ ESP-CAM UART köprü (Arduino D0/D1)
+5. ✅ STM state machine (IDLE/SCANNING/MATCH/NOMATCH/PANIC/NETERR)
+6. ✅ ESP-CAM BLE peripheral "TaxiGuard" advertising
+7. ✅ iPhone SwiftUI app BLE central + auto-dial 155
+8. ✅ Uçtan uca demo: B1 → SCANNING → MATCH → 155 dialer (Gokturk + Ekin tanındı)
+9. 🟡 MATCH ekranında benzerlik %0 görünme bug'ı → MTU 247'ye bump yapıldı, parser defansif, son test bekliyor
+10. ⏳ 20-30 kişi enrollment + FAR/FRR ölçümü
+11. ⏳ Aydınlatma (100/300/600 lx) + mesafe (30-120 cm) testleri
+12. ⏳ Tez yazımı + sergi hazırlığı (poster taslakları mevcut)
 
-1. ✅ EC2 sunucu deploy + Faz 1 uçtan uca test (health OK, burst smoke geçti)
-2. ✅ Donanım tedarik (Plan B: ESP32-CAM + STM32 F767ZI + HM-10 + LED/buzzer/buton)
-3. ✅ ESP32-CAM PlatformIO build + flash, Wi-Fi STA bağlantı testi
-4. ✅ ESP32-CAM → EC2 HTTP POST testi (burst frame'leri server'a iletildi, JSON cevap alındı)
-5. ✅ STM32 CubeMX projesi açıldı + build geçiyor + board'a flash edildi
-6. 🟡 STM32 onboard LED'leri (LD1/LD2/LD3) ile temel GPIO testi yapıldı
-7. ⏳ Harici LED + buzzer + buton (TARA/PANİK) STM'e bağlanıp test edilmedi
-8. ⏳ STM32 UART1/UART2 hatları tek başına test edilmedi (loopback / USB-TTL ile)
-9. ⏳ STM ↔ ESP32-CAM UART köprüsü — **ikisine aynı anda güç verilmedi henüz**
-10. 🟡 HM-10 tek başına test edildi (telefon + nRF Connect ile karakteristik okuma/yazma OK) — STM UART2'ye bağlama kısmı kaldı
-11. ⏳ Android app v2: BLE central + Intent.CALL + foreground service
-12. ⏳ 20-30 kişi enroll, FAR/FRR ölçümü
-13. ⏳ Test: ışık (100/300/600 lx), mesafe (30-120 cm) — rapor Tablo 5.1
-14. ⏳ Tez yazımı + sergi hazırlığı (poster `poster/poster.html` ve `poster/poster_yeni.html` hazır)
-
-> **Mevcut durum (dürüst not):** ESP32-CAM tarafı server ile uçtan uca konuşuyor (Wi-Fi STA +
-> HTTP POST + JSON parse OK). STM32 tarafı sadece build + flash + onboard LED seviyesinde.
-> İki board'a aynı anda güç verilip UART hatları üzerinden köprü kurma testi **henüz
-> yapılmadı**. Sıradaki kritik adım bu.
-
-## EC2 hızlı erişim
-- IP: `18.192.45.175`
+## EC2 quick reference
+- IP: `18.192.45.175`, HTTP port 8000
 - SSH: `ssh -i /Users/gokturkgocen/Bitirme/taxi-key.pem ec2-user@18.192.45.175`
 - Health: `curl http://18.192.45.175:8000/health`
-- Container: `taxi-server` (Docker, `--restart unless-stopped`)
-- DB'de Gokturk + Ekin enrolled
+- Server logs: `docker logs --tail 20 taxi-server`
+- DB: `/home/ec2-user/data/embeddings.pkl` (Gokturk + Ekin)
 
 ## Codex/Claude/diğer agent için son not
-- **Detaylar `face-mac/CLAUDE.md`'de.** Pin plan, protokol, agregasyon mantığı, gotcha'lar orada.
-- Mimari kilitli — yukarıdaki "Red flag" listesini iki kere oku.
+- **Detaylar `face-mac/CLAUDE.md`'de.** Pin plan, protokol detayları, agregasyon mantığı, gotcha'lar, kullanım komutları orada.
+- Mimari kilitli — "Red flag" listesini iki kere oku.
+- `iphone-app/` aktif (DOKUNULABİLİR), `taxi-key.pem` DOKUNMA.
 - Geliştirme raporu PDF kök dizinde — rapor dondu, değiştirme.
-- `iphone-app/` ve `taxi-key.pem` DOKUNMA.
-- Her kod değişikliği commit + push, anlamlı mesajla.
+- Her kod değişikliği commit + push, anlamlı mesaj.
+- CLAUDE.md güncellersen AGENTS.md'yi de güncelle (ikisi senkron olmalı).
