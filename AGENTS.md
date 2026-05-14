@@ -123,18 +123,21 @@ Bitirme/                                  # repo kökü
 2. ✅ Donanım tedarik (Plan B: ESP32-CAM + STM32 F767ZI + HM-10 + LED/buzzer/buton)
 3. ✅ ESP32-CAM PlatformIO build + flash, Wi-Fi STA bağlantı testi
 4. ✅ ESP32-CAM → EC2 HTTP POST testi (burst frame'leri server'a iletildi, JSON cevap alındı)
-5. ✅ STM32 CubeMX projesi: UART1 + UART2 + GPIO + EXTI (ETH disable, DCMI N/A — Plan B)
-6. ✅ STM32 firmware: button (TARA/PANİK), LED (yeşil/sarı/kırmızı), buzzer, state machine
-7. ✅ STM ↔ ESP32-CAM UART köprüsü çalışıyor (CAPTURE komutu / RESULT cevabı)
-8. ⏳ HM-10 entegrasyon + STM → telefon BLE notify
-9. ⏳ Android app v2: BLE central + Intent.CALL + foreground service
-10. ⏳ 20-30 kişi enroll, FAR/FRR ölçümü
-11. ⏳ Test: ışık (100/300/600 lx), mesafe (30-120 cm) — rapor Tablo 5.1
-12. ⏳ Tez yazımı + sergi hazırlığı (poster `poster/poster.html` ve `poster/poster_yeni.html` hazır)
+5. ✅ STM32 CubeMX projesi açıldı + build geçiyor + board'a flash edildi
+6. 🟡 STM32 onboard LED'leri (LD1/LD2/LD3) ile temel GPIO testi yapıldı
+7. ⏳ Harici LED + buzzer + buton (TARA/PANİK) STM'e bağlanıp test edilmedi
+8. ⏳ STM32 UART1/UART2 hatları tek başına test edilmedi (loopback / USB-TTL ile)
+9. ⏳ STM ↔ ESP32-CAM UART köprüsü — **ikisine aynı anda güç verilmedi henüz**
+10. ⏳ HM-10 entegrasyon + STM → telefon BLE notify
+11. ⏳ Android app v2: BLE central + Intent.CALL + foreground service
+12. ⏳ 20-30 kişi enroll, FAR/FRR ölçümü
+13. ⏳ Test: ışık (100/300/600 lx), mesafe (30-120 cm) — rapor Tablo 5.1
+14. ⏳ Tez yazımı + sergi hazırlığı (poster `poster/poster.html` ve `poster/poster_yeni.html` hazır)
 
-> Donanım entegre testi: ESP32-CAM ve STM32 birlikte ayağa kalktı; uçtan uca burst akışı
-> (STM TARA → ESP CAPTURE → EC2 POST → JSON dönüş → STM RESULT) doğrulandı. Sonraki adım
-> HM-10 + Android halkasının kapatılması.
+> **Mevcut durum (dürüst not):** ESP32-CAM tarafı server ile uçtan uca konuşuyor (Wi-Fi STA +
+> HTTP POST + JSON parse OK). STM32 tarafı sadece build + flash + onboard LED seviyesinde.
+> İki board'a aynı anda güç verilip UART hatları üzerinden köprü kurma testi **henüz
+> yapılmadı**. Sıradaki kritik adım bu.
 
 ## EC2 hızlı erişim
 - IP: `18.192.45.175`
