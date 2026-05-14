@@ -48,6 +48,8 @@ final class BLEManager: NSObject, ObservableObject {
     }
 
     private func handleIncoming(_ raw: Data) {
+        // Debug: log raw bytes so we can see if BLE is splitting messages.
+        print("[BLE raw] \(raw.count) bytes: \(raw.map { String(format: "%02x", $0) }.joined(separator: " "))")
         guard let chunk = String(data: raw, encoding: .utf8) else { return }
         rxBuffer.append(chunk)
         while let nl = rxBuffer.firstIndex(of: "\n") {
@@ -72,9 +74,18 @@ final class BLEManager: NSObject, ObservableObject {
         }
         if line.hasPrefix("MATCH:") {
             let body = String(line.dropFirst("MATCH:".count))
-            let parts = body.split(separator: ";", maxSplits: 1).map(String.init)
-            state.matchName = parts.first ?? "?"
-            state.matchSimilarity = (parts.count > 1 ? Double(parts[1]) : nil) ?? 0.0
+            // Use components(separatedBy:) — unlike split it keeps empty trailing
+            // segments, so "Gokturk;" becomes ["Gokturk", ""] and we can detect
+            // a truncated message instead of silently parsing similarity as 0.
+            let comps = body.components(separatedBy: ";")
+            let nameRaw = comps.first ?? "?"
+            state.matchName = nameRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if comps.count > 1 {
+                let sRaw = comps[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                state.matchSimilarity = Double(sRaw) ?? 0.0
+            } else {
+                state.matchSimilarity = 0.0
+            }
             state.currentState = "MATCH"
             state.alertActive = true
             placeEmergencyCall()

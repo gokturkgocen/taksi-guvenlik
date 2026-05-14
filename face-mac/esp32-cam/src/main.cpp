@@ -291,8 +291,11 @@ void setup(void) {
         Serial.println("\n[CAM] wifi FAILED");
     }
 
-    /* BLE peripheral — Android (or nRF Connect) will connect here. */
+    /* BLE peripheral — Android/iOS or nRF Connect will connect here. */
     BLEDevice::init(BLE_DEVICE_NAME);
+    /* Bump ATT MTU so short messages like "MATCH:Name;0.94\n" arrive in a
+     * single notification instead of getting split at the 20-byte default. */
+    BLEDevice::setMTU(247);
     bleServer = BLEDevice::createServer();
     bleServer->setCallbacks(new BleSrvCb());
     BLEService *svc = bleServer->createService(BLE_SERVICE_UUID);

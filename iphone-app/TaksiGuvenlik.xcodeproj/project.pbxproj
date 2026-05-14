@@ -17,7 +17,7 @@
 /* Begin PBXFileReference section */
 		00F6C00DA934BE6FF364D91A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		1623BE218574F1984F208141 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		1AABED576F64DF820935F3EA /* TaksiGuvenlik.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TaksiGuvenlik.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1AABED576F64DF820935F3EA /* TaksiGuvenlik.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaksiGuvenlik.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		808F9B841A6ECCA97A2106B5 /* TaksiGuvenlikApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaksiGuvenlikApp.swift; sourceTree = "<group>"; };
 		ACB111FD28BF2169C6E6F7E7 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		F269BABA3145EF0B39B6ED2C /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
@@ -83,7 +83,6 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					D681042D97199EB6EA886D70 = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -139,6 +138,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 3R9ULKMUXY;
 				INFOPLIST_FILE = TaksiGuvenlik/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -307,6 +307,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 3R9ULKMUXY;
 				INFOPLIST_FILE = TaksiGuvenlik/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
