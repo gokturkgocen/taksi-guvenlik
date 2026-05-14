@@ -205,6 +205,12 @@ HB\n
 > **Eval harness:** `face-mac/eval/` — donanım yokken bile FAR/FRR ölçümü için
 > `bulk_enroll.py` ve `far_frr.py`. Detay: `face-mac/eval/README.md`.
 
+> **STM32 state machine modülü:** `face-mac/stm32/taxi_guvenlik/Core/{Inc,Src}/state_machine.{h,c}`
+> — portable C99, HAL'dan callback vtable ile soyutlanmış. Host-side test'i
+> `face-mac/stm32/host_tests/` altında, gcc/clang ile build edilip 12 senaryo
+> deterministik fake clock üzerinden doğrulanıyor. `make run` ile çalışır.
+> Donanım gelince main.c'de callback'leri HAL'a bağla, modül zaten yerinde.
+
 Konum: `face-mac/server/`
 
 Dosyalar:

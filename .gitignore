@@ -46,6 +46,11 @@ Release/
 *.map
 *.list
 
+# STM32 host-side test binaries
+face-mac/Stm32/host_tests/test_state_machine
+face-mac/Stm32/host_tests/*.dSYM/
+face-mac/Stm32/host_tests/*.o
+
 # Android (gradle artifacts + local config; sources stay tracked)
 face-mac/android-v2/.gradle/
 face-mac/android-v2/build/
