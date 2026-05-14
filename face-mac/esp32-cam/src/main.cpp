@@ -204,6 +204,7 @@ static void run_burst(void) {
         esp_camera_fb_return(fb);
 
         if (!r.ok) {
+            digitalWrite(CAM_PIN_LED_FLASH, LOW);
             Serial.printf("[CAM] post err: %s\n", r.err);
             char msg[40];
             snprintf(msg, sizeof(msg), "ERR:%s\n", r.err);
