@@ -71,11 +71,15 @@ static uint32_t state_entered_ms = 0;
 static char match_name[48] = {0};
 static float match_sim = 0.0f;
 
-/* USART1 line buffer — receives RESULT/ERR/HB from ESP32-CAM. */
-static uint8_t uart1_rxb = 0;
-static char uart1_line[96];
-static volatile size_t uart1_idx = 0;
-static volatile bool uart1_line_ready = false;
+/* USART6 = ESP32-CAM uplink. We hand-configure USART6 instead of CubeMX's
+ * USART1 because PG14/PG9 are wired to the NUCLEO-F767ZI Arduino D1/D0
+ * silkscreen pads — far easier for users to identify than the Morpho-only
+ * PA9/PA10. huart1 stays initialized by CubeMX (no harm) but is unused. */
+UART_HandleTypeDef huart6;
+static uint8_t cam_rxb = 0;
+static char cam_line[96];
+static volatile size_t cam_idx = 0;
+static volatile bool cam_line_ready = false;
 
 /* Pending event flags set from EXTI ISR, consumed in main loop. */
 static volatile bool flag_tara = false;
@@ -102,9 +106,10 @@ static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 static void SystemClock_Config_216MHz(void);
 static void uart_set_baud(UART_HandleTypeDef *huart, uint32_t baud);
+static void MX_USART6_UART_Init_Manual(void);  /* hand-rolled USART6 setup */
 static void enter_state(app_state_t s);
 static void apply_state_outputs(app_state_t s);
-static void send_cam(const char *line);     /* USART1 → ESP32-CAM */
+static void send_cam(const char *line);     /* USART6 (Arduino D0/D1) → ESP32-CAM */
 static void send_phone(const char *line);   /* USART2 → HM-10 → Android */
 static void process_cam_line(const char *line);
 int _write(int fd, char *ptr, int len);     /* printf retarget to USART3 */
@@ -157,15 +162,15 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* USART baud overrides — CubeMX hard-codes 115200 across the board.
-   *   USART1 → ESP32-CAM      : 115200 (ASCII command/result, throughput trivial)
    *   USART2 → HM-10 BLE      : 9600   (HM-10 default)
    *   USART3 → ST-LINK VCP    : 115200 (printf debug, unchanged)
-   * USART1 dropped from 921600 to 115200 since we no longer push JPEG
-   * payloads through it — only short ASCII lines like CAPTURE\n / RESULT:..\n.
+   *   USART6 → ESP32-CAM      : configured below at 115200, Arduino D0/D1 pins
+   * huart1 is left at 115200 by CubeMX; we don't use it (kept to avoid touching
+   * generated MX_USART1_UART_Init).
    */
-  uart_set_baud(&huart1, 115200);
   uart_set_baud(&huart2, 9600);
   uart_set_baud(&huart3, 115200);
+  MX_USART6_UART_Init_Manual();
 
   /* Configure onboard LD2 blue LED (PB7) as heartbeat — visible without
    * external wiring. CubeMX didn't map PB7. */
@@ -187,8 +192,8 @@ int main(void)
   HAL_GPIO_WritePin(CAM_PWDN_GPIO_Port, CAM_PWDN_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(CAM_RESET_GPIO_Port, CAM_RESET_Pin, GPIO_PIN_RESET);
 
-  /* Start UART1 line reception (1 byte at a time, assemble lines in ISR). */
-  HAL_UART_Receive_IT(&huart1, &uart1_rxb, 1);
+  /* Start USART6 line reception from ESP32-CAM (Arduino D0 = PG9 RX). */
+  HAL_UART_Receive_IT(&huart6, &cam_rxb, 1);
 
   enter_state(STATE_IDLE);
   /* USER CODE END 2 */
@@ -224,11 +229,11 @@ int main(void)
         }
     }
 
-    /* ESP32-CAM lines on USART1. */
-    if (uart1_line_ready) {
-        process_cam_line(uart1_line);
-        uart1_idx = 0;
-        uart1_line_ready = false;
+    /* ESP32-CAM lines on USART6 (Arduino D0 RX). */
+    if (cam_line_ready) {
+        process_cam_line(cam_line);
+        cam_idx = 0;
+        cam_line_ready = false;
     }
 
     /* Scan timeout: if ESP-CAM doesn't answer in time, drop to NETERR. */
@@ -675,7 +680,7 @@ static void enter_state(app_state_t s) {
 }
 
 static void send_cam(const char *line) {
-    HAL_UART_Transmit(&huart1, (uint8_t*)line, strlen(line), 200);
+    HAL_UART_Transmit(&huart6, (uint8_t*)line, strlen(line), 200);
 }
 
 static void send_phone(const char *line) {
@@ -731,29 +736,65 @@ static void process_cam_line(const char *line) {
 /* HAL callbacks (weak in HAL, overridden here) */
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart == &huart1) {
-        char c = (char)uart1_rxb;
+    if (huart == &huart6) {
+        char c = (char)cam_rxb;
         if (c == '\n' || c == '\r') {
-            if (uart1_idx > 0 && !uart1_line_ready) {
-                uart1_line[uart1_idx] = '\0';
-                uart1_line_ready = true;
+            if (cam_idx > 0 && !cam_line_ready) {
+                cam_line[cam_idx] = '\0';
+                cam_line_ready = true;
             }
-        } else if (uart1_idx < sizeof(uart1_line) - 1) {
-            uart1_line[uart1_idx++] = c;
+        } else if (cam_idx < sizeof(cam_line) - 1) {
+            cam_line[cam_idx++] = c;
         } else {
-            /* line overflow — drop it. */
-            uart1_idx = 0;
+            cam_idx = 0;
         }
-        HAL_UART_Receive_IT(&huart1, &uart1_rxb, 1);
+        HAL_UART_Receive_IT(&huart6, &cam_rxb, 1);
     }
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
-    if (huart == &huart1) {
-        uart1_idx = 0;
-        uart1_line_ready = false;
-        HAL_UART_Receive_IT(&huart1, &uart1_rxb, 1);
+    if (huart == &huart6) {
+        cam_idx = 0;
+        cam_line_ready = false;
+        HAL_UART_Receive_IT(&huart6, &cam_rxb, 1);
     }
+}
+
+/* ─── USART6 manual init (Arduino D0=PG9 RX, D1=PG14 TX) ─── */
+static void MX_USART6_UART_Init_Manual(void) {
+    __HAL_RCC_USART6_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+
+    GPIO_InitTypeDef g = {0};
+    g.Pin = GPIO_PIN_9 | GPIO_PIN_14;
+    g.Mode = GPIO_MODE_AF_PP;
+    g.Pull = GPIO_NOPULL;
+    g.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    g.Alternate = GPIO_AF8_USART6;
+    HAL_GPIO_Init(GPIOG, &g);
+
+    HAL_NVIC_SetPriority(USART6_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(USART6_IRQn);
+
+    huart6.Instance = USART6;
+    huart6.Init.BaudRate = 115200;
+    huart6.Init.WordLength = UART_WORDLENGTH_8B;
+    huart6.Init.StopBits = UART_STOPBITS_1;
+    huart6.Init.Parity = UART_PARITY_NONE;
+    huart6.Init.Mode = UART_MODE_TX_RX;
+    huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart6.Init.OverSampling = UART_OVERSAMPLING_16;
+    huart6.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+    huart6.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+    if (HAL_UART_Init(&huart6) != HAL_OK) {
+        Error_Handler();
+    }
+}
+
+/* USART6 ISR — CubeMX didn't generate one because USART6 wasn't in the .ioc.
+ * Defining it here overrides the weak default in startup_stm32f767zitx.s. */
+void USART6_IRQHandler(void) {
+    HAL_UART_IRQHandler(&huart6);
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t pin) {
