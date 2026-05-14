@@ -263,22 +263,33 @@ Mevcut iPhone app (`iphone-app/`) UI'sini referans alacak (5 ekran: Login, Home,
 
 `/Users/gokturkgocen/Bitirme/iphone-app/` altında. Android engellenirse aktif edilir, **şu an dokunma.** Tez sunumunda Android öncelikli, iPhone fallback olarak duruyor.
 
-## v2 İş paketleri
+## v2 İş paketleri (güncel — 2026-05)
 
-| Sıra | İş | Çıktı |
-|---|---|---|
-| 1 | ✅ EC2 sunucu deploy + Faz 1 test | health OK, burst smoke test geçti |
-| 2 | Donanım sipariş + Çankaya | Parça eli |
-| 3 | ESP32 PlatformIO build + flash, Wi-Fi STA test | Wi-Fi'a bağlanıyor, log'lar OK |
-| 4 | ESP32'yi USB-TTL ile besle, sahte UART frame'i gönder | Server'a POST atıyor, RESULT alıyor |
-| 5 | STM32 CubeMX projesi: DCMI + UART1 + UART2 + GPIO + EXTI, ETH disable | Build geçiyor |
-| 6 | STM firmware: OV5640 SCCB init, DCMI tek frame capture | UART'ta JPEG SOI/EOI görünüyor |
-| 7 | STM firmware: 5 FPS × 10 frame burst + state machine + LED/buzzer | Buton bas → 10 frame ESP'ye gidiyor |
-| 8 | HM-10 entegrasyon, MATCH/PANIC frame BLE'de görünür | nRF Connect log |
-| 9 | Android app v2: BLE central + Intent.CALL + foreground service | Uçtan uca 155 araması tetikleniyor |
-| 10 | 20-30 kişi enroll, FAR/FRR ölçümü | Doğruluk tablosu |
-| 11 | Test: ışık (100/300/600 lx), mesafe (30-120 cm) — rapor Tablo 5.1 | Sonuç tablosu |
-| 12 | Tez yazımı + sergi hazırlığı | Final rapor + demo |
+| Sıra | İş | Durum | Çıktı |
+|---|---|---|---|
+| 1 | EC2 sunucu deploy + Faz 1 test | ✅ | health OK, burst smoke test geçti |
+| 2 | Donanım tedarik (Plan B: ESP32-CAM + STM32 + HM-10 + LED/buzzer/buton) | ✅ | Parça eli |
+| 3 | ESP32-CAM PlatformIO build + flash, Wi-Fi STA test | ✅ | Wi-Fi'a bağlanıyor, log'lar OK |
+| 4 | ESP32-CAM → EC2 HTTP POST testi (burst frame) | ✅ | Server'a POST atıyor, JSON RESULT alıyor |
+| 5 | STM32 CubeMX projesi: UART1 + UART2 + GPIO + EXTI (ETH disable, DCMI N/A) | ✅ | Build geçiyor, flash OK |
+| 6 | STM32 firmware: button (TARA/PANİK) + LED + buzzer + state machine | ✅ | TARA bas → SARI LED + state geçişleri |
+| 7 | STM ↔ ESP32-CAM UART köprüsü (CAPTURE komut / RESULT cevap) | ✅ | UART hattında veri akıyor, ESP burst başlatıyor |
+| 8 | HM-10 entegrasyon, MATCH/PANIC frame BLE'de görünür | ⏳ | nRF Connect log |
+| 9 | Android app v2: BLE central + Intent.CALL + foreground service | ⏳ | Uçtan uca 155 araması tetikleniyor |
+| 10 | 20-30 kişi enroll, FAR/FRR ölçümü | ⏳ | Doğruluk tablosu (poster_yeni'de boş matris hazır) |
+| 11 | Test: ışık (100/300/600 lx), mesafe (30-120 cm) — rapor Tablo 5.1 | ⏳ | Sonuç tablosu |
+| 12 | Tez yazımı + sergi hazırlığı | ⏳ | Poster `/poster/poster.html` + `poster_yeni.html` hazır; tez yazım sürüyor |
+
+### Donanım entegre testi (geçildi)
+
+- ESP32-CAM (AI-Thinker, OV3660) PlatformIO ile flash edildi; Wi-Fi STA hotspot'a bağlandı,
+  EC2'ye HTTP POST atıp JSON cevabı parse ediyor.
+- STM32 NUCLEO-F767ZI CubeMX projesi ayağa kaldırıldı (Plan B konfigürasyonu: ETH disable,
+  DCMI N/A). Buton EXTI, LED GPIO, buzzer ve UART1/UART2 hatları doğrulandı.
+- STM ↔ ESP32-CAM UART hattı çalışıyor: TARA butonuna basınca STM "CAPTURE" gönderiyor,
+  ESP burst yakalayıp server'dan dönen sonucu STM'e "RESULT" olarak iletiyor.
+- Sıradaki halka: HM-10 BLE modülünün UART2'ye bağlanması ve Android app v2'nin BLE central
+  + Intent.ACTION_CALL("tel:155") akışıyla uçtan uca kapatılması.
 
 ## Kararlar (nihai)
 

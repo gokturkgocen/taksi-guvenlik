@@ -18,28 +18,40 @@
 **Test telefonu:** Samsung Galaxy S20 FE.
 **Geliştirme bilgisayarları:** Mac (kullanıcı: `/Users/gokturkgocen/Bitirme/`), partner Mac (`/Users/ekinagaoglu/bitirme/`).
 
-## Nihai mimari (kilitli)
+## Nihai mimari (kilitli — **Plan B aktif**)
+
+> Plan A (STM-merkezli + standalone DVP OV5640 + DCMI) terkedildi. Çankaya'da DVP/parallel OV5640
+> modülü bulunamadı, DCMI entegrasyonu için kabul edilebilir süreyi aştı. **Plan B kilitli**:
+> kamera + Wi-Fi tek board'da ESP32-CAM (AI-Thinker, OV3660), STM32 olay orkestratörü olarak
+> kalır. Bütün firmware ve doküman bu mimari üzerine kurulu. **Detayları `face-mac/CLAUDE.md`.**
 
 ```
-   OV5640 ──DCMI──► STM32 NUCLEO-F767ZI ──UART1 (921600)──► ESP32-WROOM-32
-   (yolcu)         │ TARA + PANİK butonu                    │ Wi-Fi STA
-                   │ Yeşil/Kırmızı/Sarı LED, buzzer         │ HTTP POST
-                   │ 5 FPS × 2 s = 10 frame burst           ▼
-                   │                                       EC2 m7i-flex.large (eu-central-1)
-                   │                                       Flask + InsightFace buffalo_l
-                   │                                       18.192.45.175:8000 (Faz 1)
-                   │                                       multi-frame centroid agregasyon
-                   │                                       pickle DB
-                   │
-                   └──UART2 (9600)────► HM-10/HM-19 ──BLE──► Android (Samsung S20 FE)
-                                                            Intent.ACTION_CALL("tel:155")
+   Yolcu yüzü ─► ESP32-CAM (AI-Thinker, OV3660)
+                 │ 5 FPS × 2 s = 10 frame burst
+                 │ Wi-Fi STA · HTTP POST ─► EC2 m7i-flex.large (eu-central-1)
+                 │                          Flask + InsightFace buffalo_l
+                 │                          18.192.45.175:8000 (Faz 1)
+                 │                          multi-frame centroid + passive liveness
+                 │                          pickle DB
+                 │ UART (115200) "CAPTURE" / "RESULT"
+                 ▼
+   STM32 NUCLEO-F767ZI
+                 │ TARA + PANİK buton (EXTI)
+                 │ Yeşil/Sarı/Kırmızı LED + buzzer
+                 │ State machine: IDLE/SCAN/MATCH/NOMATCH/PANIC/NETERR
+                 │ UART2 (9600)
+                 ▼
+   HM-10/HM-19 ──BLE──► Android (Samsung S20 FE)
+                        Intent.ACTION_CALL("tel:155")
 ```
 
 ## Veri akışı (10-frame burst)
 1. Sürücü TARA butonu → STM SARI LED + HM-10 üzerinden "SCANNING\n"
-2. STM, 5 FPS × 2 sn = 10 frame yakalar (DCMI/DMA, OV5640 JPEG)
-3. Her frame: STM → UART → ESP32 → HTTP POST → EC2 (X-Session-Id, X-Frame-Index, X-Frame-Total)
-4. 10. frame'de server agregasyon (kalite filtresi → ArcFace embedding → centroid → cosine sim → DB match → passive liveness)
+2. STM, UART üzerinden ESP32-CAM'e "CAPTURE" komutu yollar
+3. ESP32-CAM 5 FPS × 2 sn = 10 frame yakalar, her frame'i Wi-Fi üzerinden EC2'ye POST eder
+   (X-Session-Id, X-Frame-Index, X-Frame-Total başlıkları)
+4. 10. frame'de server agregasyon (kalite filtresi → ArcFace embedding → centroid → cosine sim
+   → DB match → passive liveness)
 5. ESP sonucu CSV `"1;name;0.94"` olarak STM'e UART üstünden döner
 6. STM: MATCH → KIRMIZI LED + buzzer + HM-10 → "MATCH:..\n"; NOMATCH → YEŞİL LED
 7. Telefon BLE notify alır, MATCH ise `Intent.ACTION_CALL("tel:155")` otomatik arar
@@ -58,8 +70,8 @@ Toplam ~5-7 sn. Latency önemsiz.
 |---|---|
 | Kendi sunucumuz + buffalo_l (AWS Rekognition **DEĞİL**) | Modeli kontrol ediyoruz, KVKK temiz, FAR/FRR tezde dolgun savunma |
 | Multi-frame burst 10 frame (tek-shot **DEĞİL**) | Robust + bedava passive liveness |
-| OV5640 (OV2640 yerine) | ST resmi BSP driver, 1-2 gün debug kazancı |
-| ESP32-WROOM ayrı (ESP32-CAM **Plan B**) | STM-merkezli mimari, ESP sadece Wi-Fi köprüsü |
+| ESP32-CAM AI-Thinker + OV3660 (**Plan B kilitli**) | DVP OV5640 modülü bulunamadı; kamera + Wi-Fi tek board'da, STM olay orkestratörü |
+| STM32 NUCLEO-F767ZI olay yöneticisi | Buton/LED/buzzer/HM-10; tanıma server'da, kamera ESP'te |
 | HM-10/HM-19/AT-09 BLE (HC-05 **DEĞİL**) | Komut data tiny, BLE yeter |
 | 921600 UART STM↔ESP (SPI değil) | Basit, debug rahat |
 | Intent.ACTION_CALL (tel://dialer **DEĞİL**) | Otomatik 155 |
@@ -95,33 +107,34 @@ Bitirme/                                  # repo kökü
 ├── face-mac/                             # ana proje klasörü
 │   ├── CLAUDE.md                         # ⭐ ANA DOKÜMANTASYON
 │   ├── server/                           # ⭐ Flask + InsightFace (EC2'de canlı)
-│   │   ├── app.py, recognition.py, db.py, enroll.py
-│   │   ├── test_simulate_burst.py
-│   │   ├── Dockerfile, deploy_ec2.sh, requirements.txt
-│   ├── esp32/                            # ⭐ PlatformIO firmware
-│   │   ├── platformio.ini
-│   │   ├── include/config.h
-│   │   └── src/main.cpp
-│   ├── stm32/                            # ⭐ CubeIDE (donanım gelince)
-│   └── android-v2/                       # ⭐ Android Studio (donanım gelince)
+│   ├── esp32-cam/                        # ⭐ PlatformIO firmware (Plan B aktif)
+│   └── stm32/                            # ⭐ CubeIDE firmware (donanım üstünde test edildi)
 │
-└── iphone-app/                           # PLAN B — DOKUNMA, Android engellenirse aktif
+├── poster/                               # ⭐ Bitirme sergi posteri (70×100 cm)
+│   ├── poster.html                       # ana poster (akademik ETH/MIT tarzı)
+│   └── poster_yeni.html                  # +Pin planı, FAR/FRR matrisi, QR ekli versiyon
+│
+└── iphone-app/                           # Eski iOS denemesi — DOKUNMA
 ```
 
-## Aktif iş paketleri
+## Aktif iş paketleri (güncel — 2026-05)
 
 1. ✅ EC2 sunucu deploy + Faz 1 uçtan uca test (health OK, burst smoke geçti)
-2. Çankaya'dan donanım (BOM CLAUDE.md'de)
-3. ESP32 PlatformIO build + flash, Wi-Fi STA test
-4. ESP32 sahte UART frame ile server'a POST testi
-5. STM32 CubeMX projesi: DCMI + UART1 + UART2 + GPIO + EXTI, ETH disable
-6. STM firmware: OV5640 SCCB init, DCMI tek frame, UART1 hex dump
-7. STM firmware: 5 FPS × 10 frame burst + state machine + LED/buzzer
-8. HM-10 entegrasyon + STM olay yönetimi
-9. Android app v2: BLE central + Intent.CALL + foreground service
-10. 20-30 kişi enroll, FAR/FRR ölçümü
-11. Test: ışık (100/300/600 lx), mesafe (30-120 cm) — rapor Tablo 5.1
-12. Tez yazımı + sergi hazırlığı
+2. ✅ Donanım tedarik (Plan B: ESP32-CAM + STM32 F767ZI + HM-10 + LED/buzzer/buton)
+3. ✅ ESP32-CAM PlatformIO build + flash, Wi-Fi STA bağlantı testi
+4. ✅ ESP32-CAM → EC2 HTTP POST testi (burst frame'leri server'a iletildi, JSON cevap alındı)
+5. ✅ STM32 CubeMX projesi: UART1 + UART2 + GPIO + EXTI (ETH disable, DCMI N/A — Plan B)
+6. ✅ STM32 firmware: button (TARA/PANİK), LED (yeşil/sarı/kırmızı), buzzer, state machine
+7. ✅ STM ↔ ESP32-CAM UART köprüsü çalışıyor (CAPTURE komutu / RESULT cevabı)
+8. ⏳ HM-10 entegrasyon + STM → telefon BLE notify
+9. ⏳ Android app v2: BLE central + Intent.CALL + foreground service
+10. ⏳ 20-30 kişi enroll, FAR/FRR ölçümü
+11. ⏳ Test: ışık (100/300/600 lx), mesafe (30-120 cm) — rapor Tablo 5.1
+12. ⏳ Tez yazımı + sergi hazırlığı (poster `poster/poster.html` ve `poster/poster_yeni.html` hazır)
+
+> Donanım entegre testi: ESP32-CAM ve STM32 birlikte ayağa kalktı; uçtan uca burst akışı
+> (STM TARA → ESP CAPTURE → EC2 POST → JSON dönüş → STM RESULT) doğrulandı. Sonraki adım
+> HM-10 + Android halkasının kapatılması.
 
 ## EC2 hızlı erişim
 - IP: `18.192.45.175`

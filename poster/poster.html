@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Taksi İçi Yüz Tanıma ile Suçlu Tespit Sistemi — Lisans Bitirme Posteri</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500;6..72,600;6..72,700&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  @page {
+    size: 700mm 1000mm;
+    margin: 0;
+  }
+
+  :root {
+    --paper:        #F1ECE0;
+    --paper-tint:   #E9E2D2;
+    --paper-deep:   #DDD4BF;
+    --ink:          #11162A;
+    --ink-soft:     #2A3047;
+    --ink-mute:     #5B6075;
+    --rule:         #11162A;
+    --rule-faint:   rgba(17, 22, 42, 0.18);
+    --accent:       #B8862B;   /* brass / academic gold */
+    --accent-deep:  #8C631A;
+    --signal:       #9C2A21;   /* deep oxblood, for the 155 / match signal only */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 700mm;
+    height: 1000mm;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
+    font-size: 10.5pt;
+    line-height: 1.5;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'onum' 1, 'ss01' 1;
+    -webkit-font-smoothing: antialiased;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .poster {
+    width: 700mm;
+    height: 1000mm;
+    padding: 26mm 30mm 22mm 30mm;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ---------- Folio marks (corner registration ticks) ---------- */
+  .poster::before,
+  .poster::after {
+    content: "";
+    position: absolute;
+    width: 8mm;
+    height: 8mm;
+    border: 0.4mm solid var(--ink);
+    pointer-events: none;
+  }
+  .poster::before { top: 10mm; left: 10mm; border-right: 0; border-bottom: 0; }
+  .poster::after  { bottom: 10mm; right: 10mm; border-left: 0; border-top: 0; }
+  .corner-tr, .corner-bl {
+    position: absolute;
+    width: 8mm;
+    height: 8mm;
+    border: 0.4mm solid var(--ink);
+    pointer-events: none;
+  }
+  .corner-tr { top: 10mm; right: 10mm; border-left: 0; border-bottom: 0; }
+  .corner-bl { bottom: 10mm; left: 10mm; border-right: 0; border-top: 0; }
+
+  /* ---------- Typographic primitives ---------- */
+  .mono {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-feature-settings: 'ss01' 1;
+  }
+  .sans {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  .kicker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5pt;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .rule {
+    height: 0;
+    border-top: 0.3mm solid var(--rule);
+  }
+  .rule--faint { border-top-color: var(--rule-faint); }
+  .rule--accent { border-top: 0.5mm solid var(--accent); }
+
+  p { text-align: justify; hyphens: auto; }
+  p + p { margin-top: 2mm; }
+  b, strong { font-weight: 600; color: var(--ink); }
+
+  /* ============================================================
+     §1 MASTHEAD
+     ============================================================ */
+  .masthead {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10mm;
+    padding-bottom: 4mm;
+  }
+  .masthead .ident {
+    display: flex;
+    align-items: center;
+    gap: 5mm;
+  }
+  .masthead .ident.right { flex-direction: row-reverse; text-align: right; }
+  .masthead .ident__text { line-height: 1.35; }
+  .masthead .ident__text .name {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    text-transform: uppercase;
+  }
+  .masthead .ident__text .sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    letter-spacing: 0.15em;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    margin-top: 0.5mm;
+  }
+  .masthead .center {
+    display: flex;
+    justify-content: center;
+    gap: 8mm;
+  }
+  .masthead .center .item {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .masthead .center .item .num {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .monogram { width: 18mm; height: 18mm; flex: 0 0 18mm; }
+  .monogram--sm { width: 14mm; height: 14mm; flex: 0 0 14mm; }
+
+  /* ============================================================
+     §2 TITLE BLOCK
+     ============================================================ */
+  .title-block {
+    padding: 8mm 0 6mm 0;
+    border-top: 0.6mm solid var(--ink);
+    border-bottom: 0.3mm solid var(--rule-faint);
+    margin-top: 2mm;
+  }
+  .title-block .pretitle {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6mm;
+  }
+  .title-block .pretitle .left,
+  .title-block .pretitle .right {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8pt;
+    letter-spacing: 0.2em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .title-block .pretitle .right { color: var(--accent); }
+
+  h1.display {
+    font-family: 'Newsreader', 'Source Serif 4', serif;
+    font-optical-sizing: auto;
+    font-variation-settings: 'opsz' 72;
+    font-weight: 500;
+    font-size: 78pt;
+    line-height: 0.96;
+    letter-spacing: -0.018em;
+    color: var(--ink);
+    margin: 0;
+  }
+  h1.display em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--ink-soft);
+  }
+  .subtitle {
+    font-family: 'Newsreader', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 22pt;
+    line-height: 1.15;
+    color: var(--ink-soft);
+    margin-top: 6mm;
+    letter-spacing: -0.005em;
+  }
+  .accent-dot {
+    display: inline-block;
+    width: 2.2mm;
+    height: 2.2mm;
+    background: var(--accent);
+    border-radius: 50%;
+    vertical-align: middle;
+    margin: 0 1mm 0.8mm 0;
+  }
+
+  /* ============================================================
+     §3 META (authors / advisor / keywords)
+     ============================================================ */
+  .meta {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1.3fr;
+    gap: 0;
+    padding: 5mm 0 6mm 0;
+    border-bottom: 0.3mm solid var(--rule-faint);
+    margin-bottom: 8mm;
+  }
+  .meta-col { padding-right: 8mm; border-right: 0.2mm solid var(--rule-faint); }
+  .meta-col:last-child { border-right: 0; padding-right: 0; padding-left: 8mm; }
+  .meta-col + .meta-col { padding-left: 8mm; }
+
+  .meta-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    letter-spacing: 0.2em;
+    color: var(--accent-deep);
+    text-transform: uppercase;
+    margin-bottom: 3mm;
+  }
+  .meta-person + .meta-person { margin-top: 2.5mm; }
+  .meta-name {
+    font-family: 'Newsreader', serif;
+    font-size: 13.5pt;
+    font-weight: 500;
+    line-height: 1.15;
+    color: var(--ink);
+  }
+  .meta-aff {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 8.5pt;
+    color: var(--ink-mute);
+    margin-top: 0.4mm;
+    letter-spacing: 0.02em;
+  }
+  .meta-body {
+    font-family: 'Source Serif 4', serif;
+    font-style: italic;
+    font-size: 10pt;
+    line-height: 1.45;
+    color: var(--ink-soft);
+    text-align: left;
+  }
+
+  /* ============================================================
+     §4 SECTION TEMPLATE
+     ============================================================ */
+  section.sec { margin-bottom: 8mm; }
+
+  .sec-marker {
+    display: flex;
+    align-items: baseline;
+    gap: 4mm;
+    margin-bottom: 4mm;
+  }
+  .sec-marker .num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9pt;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+  }
+  .sec-marker .dash {
+    flex: 0 0 8mm;
+    height: 0.3mm;
+    background: var(--ink);
+    align-self: center;
+    margin-top: 0.4mm;
+  }
+  .sec-marker h2 {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13pt;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .sec-marker h2 .alt {
+    font-family: 'Newsreader', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 12pt;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink-mute);
+    margin-left: 2mm;
+  }
+
+  /* abstract / amaç bodies */
+  .body-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14mm;
+  }
+  .body-2col .col h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8pt;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+    margin-bottom: 2.5mm;
+    padding-bottom: 1.5mm;
+    border-bottom: 0.2mm solid var(--rule-faint);
+  }
+  .body-2col p, .sec p { font-size: 10.5pt; line-height: 1.55; }
+
+  .keywords-line {
+    margin-top: 3mm;
+    padding-top: 2mm;
+    border-top: 0.2mm solid var(--rule-faint);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 8.5pt;
+    color: var(--ink-mute);
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    text-align: left;
+  }
+  .keywords-line .lbl {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-soft);
+    margin-right: 1.5mm;
+  }
+
+  /* the amaç paragraph gets dropcap */
+  .lead p:first-of-type::first-letter {
+    font-family: 'Newsreader', serif;
+    font-weight: 500;
+    font-size: 38pt;
+    line-height: 0.85;
+    float: left;
+    padding: 1.5mm 2mm 0 0;
+    color: var(--ink);
+  }
+
+  /* ============================================================
+     §5 ARCHITECTURE DIAGRAM
+     ============================================================ */
+  .diagram-frame {
+    margin: 4mm 0 3mm 0;
+    padding: 0;
+  }
+  .diagram-frame svg { width: 100%; height: auto; display: block; }
+  .figure-caption {
+    display: flex;
+    align-items: baseline;
+    gap: 3mm;
+    margin-top: 2mm;
+    padding-top: 1.5mm;
+    border-top: 0.2mm solid var(--rule-faint);
+    font-family: 'Source Serif 4', serif;
+    font-style: italic;
+    font-size: 9pt;
+    color: var(--ink-mute);
+  }
+  .figure-caption .fig {
+    font-family: 'IBM Plex Mono', monospace;
+    font-style: normal;
+    font-size: 8pt;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+  }
+
+  /* ============================================================
+     §6 DATA FLOW (5 steps)
+     ============================================================ */
+  .flow-track {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    border-top: 0.3mm solid var(--ink);
+    border-bottom: 0.3mm solid var(--rule-faint);
+    margin: 6mm 0 2mm 0;
+  }
+  .flow-step {
+    padding: 4mm 4mm 4mm 4mm;
+    border-right: 0.2mm solid var(--rule-faint);
+    position: relative;
+  }
+  .flow-step:last-child { border-right: 0; }
+  .flow-step .n {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9pt;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 2mm;
+  }
+  .flow-step .n::before {
+    content: "T+";
+    color: var(--ink-mute);
+    margin-right: 0.5mm;
+  }
+  .flow-step .h {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9.5pt;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 1.5mm;
+    line-height: 1.2;
+  }
+  .flow-step p {
+    font-size: 9pt;
+    line-height: 1.45;
+    color: var(--ink-soft);
+    text-align: left;
+    hyphens: none;
+  }
+
+  /* ============================================================
+     §7 SUBSYSTEM GRID (4 panels)
+     ============================================================ */
+  .subsystems {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: 0.3mm solid var(--ink);
+    margin-top: 6mm;
+  }
+  .subsys {
+    padding: 5mm 5mm 5mm 0;
+    border-right: 0.2mm solid var(--rule-faint);
+    padding-left: 5mm;
+  }
+  .subsys:first-child { padding-left: 0; }
+  .subsys:last-child { border-right: 0; padding-right: 0; }
+  .subsys .idx {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8pt;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    margin-bottom: 2mm;
+  }
+  .subsys h4 {
+    font-family: 'Newsreader', serif;
+    font-weight: 500;
+    font-size: 14pt;
+    line-height: 1.1;
+    color: var(--ink);
+    margin-bottom: 1mm;
+    letter-spacing: -0.005em;
+  }
+  .subsys .role {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 8pt;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 3mm;
+  }
+  .subsys p {
+    font-size: 9.5pt;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    text-align: justify;
+  }
+
+  /* ============================================================
+     §8 METRICS STRIP
+     ============================================================ */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: 0.5mm solid var(--ink);
+    border-bottom: 0.5mm solid var(--ink);
+    padding: 5mm 0;
+    margin: 4mm 0 0 0;
+  }
+  .metric {
+    padding: 0 6mm;
+    border-right: 0.2mm solid var(--rule-faint);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .metric:last-child { border-right: 0; }
+  .metric .num {
+    font-family: 'Newsreader', serif;
+    font-weight: 500;
+    font-size: 44pt;
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    font-variant-numeric: lining-nums;
+  }
+  .metric .num .unit {
+    font-family: 'Source Serif 4', serif;
+    font-style: italic;
+    font-size: 16pt;
+    font-weight: 400;
+    color: var(--accent);
+    margin-left: 1mm;
+    letter-spacing: 0;
+  }
+  .metric .lbl {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8pt;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-top: 2mm;
+  }
+
+  /* ============================================================
+     §9 CONCLUSION + PHOTO PLACEHOLDER
+     ============================================================ */
+  .conclusion {
+    display: grid;
+    grid-template-columns: 0.95fr 1.2fr;
+    gap: 14mm;
+    align-items: stretch;
+  }
+  .photo-placeholder {
+    border: 0.4mm dashed var(--ink-mute);
+    background:
+      repeating-linear-gradient(135deg,
+        transparent 0,
+        transparent 3mm,
+        rgba(17,22,42,0.04) 3mm,
+        rgba(17,22,42,0.04) 3.4mm);
+    min-height: 95mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 5mm;
+    position: relative;
+  }
+  .photo-placeholder .ph-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .photo-placeholder .fig {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8pt;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+  }
+  .photo-placeholder .ph-tick {
+    width: 5mm; height: 5mm;
+    border-top: 0.4mm solid var(--ink-mute);
+    border-right: 0.4mm solid var(--ink-mute);
+  }
+  .photo-placeholder .ph-mid {
+    text-align: center;
+    color: var(--ink-mute);
+  }
+  .photo-placeholder .ph-mid .label {
+    font-family: 'Newsreader', serif;
+    font-style: italic;
+    font-size: 16pt;
+    color: var(--ink-soft);
+    margin-bottom: 2mm;
+  }
+  .photo-placeholder .ph-mid .sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5pt;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .photo-placeholder .ph-bot {
+    display: flex;
+    justify-content: space-between;
+  }
+  .photo-placeholder .ph-tick-bl {
+    width: 5mm; height: 5mm;
+    border-bottom: 0.4mm solid var(--ink-mute);
+    border-left: 0.4mm solid var(--ink-mute);
+    align-self: flex-end;
+  }
+  .photo-placeholder .ph-tick-br {
+    width: 5mm; height: 5mm;
+    border-bottom: 0.4mm solid var(--ink-mute);
+    border-right: 0.4mm solid var(--ink-mute);
+    align-self: flex-end;
+  }
+
+  .conclusion-body {
+    display: flex;
+    flex-direction: column;
+  }
+  .conclusion-body p { font-size: 10pt; line-height: 1.5; }
+  .conclusion-body .recs {
+    margin-top: 3mm;
+    padding-top: 3mm;
+    border-top: 0.2mm solid var(--rule-faint);
+  }
+  .recs ul { list-style: none; padding: 0; margin: 2mm 0 0 0; }
+  .recs li {
+    font-size: 9.5pt;
+    line-height: 1.45;
+    padding: 1mm 0 1mm 6mm;
+    position: relative;
+    text-align: left;
+    border-bottom: 0.15mm solid var(--rule-faint);
+  }
+  .recs li:last-child { border-bottom: 0; }
+  .recs li::before {
+    content: counter(rec, decimal-leading-zero);
+    counter-increment: rec;
+    position: absolute;
+    left: 0;
+    top: 1.6mm;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+  }
+  .recs ul { counter-reset: rec; }
+  .recs li b {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 9.5pt;
+  }
+
+  /* ============================================================
+     §10 COLOPHON / FOOTER
+     ============================================================ */
+  footer.colophon {
+    position: absolute;
+    left: 30mm;
+    right: 30mm;
+    bottom: 14mm;
+    border-top: 0.6mm solid var(--ink);
+    padding-top: 3mm;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8mm;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  footer.colophon .left { text-align: left; }
+  footer.colophon .center { text-align: center; color: var(--ink); }
+  footer.colophon .right { text-align: right; }
+  footer.colophon .accent { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="poster">
+  <div class="corner-tr"></div>
+  <div class="corner-bl"></div>
+
+  <!-- ========================================================
+       MASTHEAD
+       ======================================================== -->
+  <header class="masthead">
+    <div class="ident">
+      <svg class="monogram" viewBox="0 0 200 200" aria-label="Ege Üniversitesi">
+        <circle cx="100" cy="100" r="92" fill="none" stroke="#11162A" stroke-width="2"/>
+        <circle cx="100" cy="100" r="78" fill="none" stroke="#11162A" stroke-width="0.6"/>
+        <g font-family="Newsreader, serif" fill="#11162A" text-anchor="middle">
+          <text x="100" y="84" font-size="26" font-weight="500" letter-spacing="2">EGE</text>
+          <text x="100" y="106" font-size="9" letter-spacing="3.5" font-family="IBM Plex Mono, monospace">ÜNİVERSİTESİ</text>
+        </g>
+        <line x1="60" y1="118" x2="140" y2="118" stroke="#B8862B" stroke-width="1"/>
+        <text x="100" y="138" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="#5B6075" letter-spacing="3">MCMLV</text>
+      </svg>
+      <div class="ident__text">
+        <div class="name">T.C. Ege Üniversitesi</div>
+        <div class="sub">Mühendislik Fakültesi</div>
+        <div class="sub" style="margin-top:0.4mm">Elektrik–Elektronik Müh.</div>
+      </div>
+    </div>
+
+    <div class="center">
+      <div class="item"><span class="num">2025 / 2026</span> &nbsp;·&nbsp; Lisans Bitirme Projesi</div>
+    </div>
+
+    <div class="ident right">
+      <svg class="monogram" viewBox="0 0 200 200" aria-label="EE Bölümü">
+        <circle cx="100" cy="100" r="92" fill="none" stroke="#11162A" stroke-width="2"/>
+        <g fill="none" stroke="#11162A" stroke-width="1.6">
+          <!-- stylized circuit / EE mark: integrator / op-amp triangle -->
+          <path d="M62 70 L62 130 L120 100 Z"/>
+          <line x1="38" y1="84" x2="62" y2="84"/>
+          <line x1="38" y1="116" x2="62" y2="116"/>
+          <line x1="120" y1="100" x2="162" y2="100"/>
+          <circle cx="142" cy="100" r="5"/>
+          <text x="50" y="88" font-family="IBM Plex Mono" font-size="9" stroke="none" fill="#11162A">−</text>
+          <text x="50" y="122" font-family="IBM Plex Mono" font-size="9" stroke="none" fill="#11162A">+</text>
+        </g>
+        <line x1="60" y1="150" x2="140" y2="150" stroke="#B8862B" stroke-width="1"/>
+        <text x="100" y="166" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="8" fill="#5B6075" letter-spacing="2">EST. 1982</text>
+      </svg>
+      <div class="ident__text">
+        <div class="name">EE Bölümü</div>
+        <div class="sub">Bornova · İzmir</div>
+        <div class="sub" style="margin-top:0.4mm">Poster № EE-25/26</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================
+       TITLE BLOCK
+       ======================================================== -->
+  <section class="title-block">
+    <div class="pretitle">
+      <div class="left">Lisans Bitirme Tezi · Poster Sunumu</div>
+      <div class="right">Cilt I · Tek Sayfa</div>
+    </div>
+    <h1 class="display">Taksi İçi Yüz Tanıma ile<br><em>Suçlu Tespit Sistemi</em></h1>
+    <div class="subtitle">
+      <span class="accent-dot"></span>An In-Taxi Face Recognition System for Real-Time Suspect Detection &amp; Emergency Dispatch
+    </div>
+  </section>
+
+  <!-- ========================================================
+       META BLOCK — authors / advisor / keywords
+       ======================================================== -->
+  <section class="meta">
+    <div class="meta-col">
+      <div class="meta-label">Hazırlayanlar · Authors</div>
+      <div class="meta-person">
+        <div class="meta-name">Göktürk Göçen</div>
+        <div class="meta-aff">qgokturk@gmail.com</div>
+      </div>
+      <div class="meta-person">
+        <div class="meta-name">Ekin Ağaoğlu</div>
+        <div class="meta-aff">ekinagaoglu@gmail.com</div>
+      </div>
+    </div>
+    <div class="meta-col">
+      <div class="meta-label">Proje Danışmanı · Advisor</div>
+      <div class="meta-person">
+        <div class="meta-name">Prof. Dr. Aydoğan Savran</div>
+        <div class="meta-aff">Ege Üniversitesi · EE Bölümü</div>
+      </div>
+    </div>
+    <div class="meta-col">
+      <div class="meta-label">Anahtar Kelimeler · Keywords</div>
+      <div class="meta-body">
+        yüz tanıma · ArcFace · gömülü sistem · ESP32-CAM · STM32 · BLE · IoT güvenlik ·
+        taksi güvenliği · multi-frame agregasyon · passive liveness
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================
+       §1 — ÖZET / ABSTRACT
+       ======================================================== -->
+  <section class="sec">
+    <div class="sec-marker">
+      <span class="num">§ 01</span>
+      <span class="dash"></span>
+      <h2>Özet <span class="alt">— Abstract</span></h2>
+    </div>
+    <div class="body-2col">
+      <div class="col">
+        <h3>Türkçe</h3>
+        <p>Bu projede, taksi gibi araç içi ortamlarda yolcu güvenliğini artırmaya yönelik, gömülü
+        sistem tabanlı bir yüz tanıma çözümü tasarlanmıştır. Arka koltuğa yerleştirilen
+        <b>ESP32-CAM</b> modülü, sürücünün TARA komutu ile <b>2 saniye boyunca 5 FPS hızında
+        10 frame'lik</b> bir görüntü burst'ü yakalar ve Wi-Fi üzerinden buluttaki sunucuya gönderir.
+        AWS EC2 üzerinde host edilen Flask + InsightFace (ArcFace-R100, buffalo_l) sunucusu, her
+        frame için kalite filtresi uygular; geçerli embedding'lerin centroid'i ile aranan suçlu
+        veritabanı arasında kosinüs benzerliği hesaplar. Eşleşme tespit edildiğinde sonuç,
+        STM32 NUCLEO-F767ZI üzerindeki olay yöneticisine UART üzerinden iletilir; STM32, LED ve
+        buzzer ile sürücüyü uyarır ve HM-10 BLE modülü üzerinden eşli Android telefona MATCH
+        mesajı gönderir. Telefondaki uygulama, BLE notification ile tetiklenerek otomatik olarak
+        <b>155 Polis İmdat</b> hattını arar. Sistem; yerel ön-işleme, bulut tanıma ve BLE
+        tetikleme mimarisini birleştirerek düşük maliyetli, modüler ve KVKK uyumlu bir prototip
+        ortaya koymaktadır.</p>
+      </div>
+      <div class="col">
+        <h3>English</h3>
+        <p>This project presents an embedded-system based face recognition solution designed to
+        improve passenger safety inside vehicles such as taxis. An <b>ESP32-CAM</b> module mounted
+        toward the rear seat captures a short burst of <b>10 frames at 5 FPS over 2 seconds</b>
+        upon the driver's scan command, and uploads them to a cloud server over Wi-Fi. A
+        Flask + InsightFace (ArcFace-R100, buffalo_l) backend hosted on AWS EC2 applies a
+        per-frame quality filter, computes the centroid of valid embeddings, and performs cosine
+        similarity matching against a wanted-suspect database. Upon a positive match, the result
+        is delivered via UART to an STM32 NUCLEO-F767ZI event manager, which alerts the driver
+        through LEDs and a buzzer and forwards the event to a paired Android phone over an HM-10
+        BLE link. The Android application listens for BLE notifications and automatically dials
+        the national emergency number <b>155</b>. The architecture combines on-device
+        pre-processing, cloud-side recognition and BLE-driven actuation into a low-cost, modular,
+        GDPR-aware prototype.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================
+       §2 — AMAÇ VE KAPSAM
+       ======================================================== -->
+  <section class="sec lead">
+    <div class="sec-marker">
+      <span class="num">§ 02</span>
+      <span class="dash"></span>
+      <h2>Amaç ve Kapsam <span class="alt">— Aim &amp; Scope</span></h2>
+    </div>
+    <p>Ticari taksilerde yolcunun kimliği sürüş öncesinde doğrulanmaz; bu durum hem sürücü hem
+    yolcu güvenliği açısından risk oluşturur. Bu projenin amacı, sürücünün dikkatini dağıtmadan,
+    sadece <b>tek bir butona basarak</b> arka koltuktaki yolcunun aranan suçlular veritabanı ile
+    eşleştirilmesini sağlayan, düşük maliyetli bir gömülü sistem prototipi geliştirmektir. Sistem;
+    görüntü yakalama, ön-işleme, bulut tabanlı yüz tanıma, sürücü geri bildirimi ve otomatik
+    <b>155 çağrısı</b> bileşenlerini uçtan uca entegre eder. Tasarım modülerdir: kamera+ağ
+    köprüsü, olay yöneticisi ve mobil tetikleyici birbirinden bağımsız geliştirilebilir; böylece
+    akademik bir bitirme projesinin kapsamı içinde kalırken, endüstride filo araçlarına
+    genişletilebilir bir referans mimari sunulur.</p>
+  </section>
+
+  <!-- ========================================================
+       §3 — PROJE ADIMLARI :: SİSTEM MİMARİSİ
+       ======================================================== -->
+  <section class="sec">
+    <div class="sec-marker">
+      <span class="num">§ 03</span>
+      <span class="dash"></span>
+      <h2>Proje Adımları <span class="alt">— Method &amp; System Architecture</span></h2>
+    </div>
+
+    <!-- IEEE-style block diagram -->
+    <div class="diagram-frame">
+      <svg viewBox="0 0 1480 540" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#11162A"/>
+          </marker>
+          <marker id="ah-sig" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#9C2A21"/>
+          </marker>
+          <marker id="ah-ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#B8862B"/>
+          </marker>
+          <style>
+            .lbl-component { font: 600 17px 'IBM Plex Sans', sans-serif; fill: #11162A; letter-spacing: 0.06em; }
+            .lbl-role      { font: 400 11px 'IBM Plex Mono', monospace; fill: #5B6075; letter-spacing: 0.14em; text-transform: uppercase; }
+            .lbl-spec      { font: 400 11px 'IBM Plex Mono', monospace; fill: #2A3047; }
+            .lbl-tiny      { font: 400 9.5px 'IBM Plex Mono', monospace; fill: #5B6075; letter-spacing: 0.12em; }
+            .lbl-edge      { font: 400 10px 'IBM Plex Mono', monospace; fill: #2A3047; letter-spacing: 0.06em; }
+            .lbl-edge-ac   { font: 500 10px 'IBM Plex Mono', monospace; fill: #8C631A; letter-spacing: 0.06em; }
+            .lbl-edge-sig  { font: 500 10px 'IBM Plex Mono', monospace; fill: #9C2A21; letter-spacing: 0.06em; }
+            .lbl-bracket   { font: 500 11px 'IBM Plex Mono', monospace; fill: #8C631A; letter-spacing: 0.22em; text-transform: uppercase; }
+            .lbl-bracket-side { font: 500 10.5px 'IBM Plex Mono', monospace; fill: #11162A; letter-spacing: 0.2em; }
+          </style>
+        </defs>
+
+        <!-- Background paper -->
+        <rect x="0" y="0" width="1480" height="540" fill="#F1ECE0"/>
+
+        <!-- Zone brackets (top labels) -->
+        <text x="40"   y="34" class="lbl-bracket">A · Araç İçi · In-Vehicle</text>
+        <text x="780"  y="34" class="lbl-bracket">B · Bulut Tanıma · Cloud Recognition</text>
+        <text x="1180" y="34" class="lbl-bracket">C · Acil Çağrı · Dispatch</text>
+
+        <!-- Vertical dotted separators between zones -->
+        <line x1="760" y1="40" x2="760" y2="510" stroke="#11162A" stroke-width="0.6" stroke-dasharray="2 3" opacity="0.45"/>
+        <line x1="1160" y1="40" x2="1160" y2="510" stroke="#11162A" stroke-width="0.6" stroke-dasharray="2 3" opacity="0.45"/>
+
+        <!-- ===== Passenger ===== -->
+        <g transform="translate(50,180)">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="#11162A" stroke-width="1.6"/>
+          <circle cx="40" cy="40" r="34" fill="none" stroke="#B8862B" stroke-width="0.6" stroke-dasharray="1 2"/>
+          <circle cx="30" cy="36" r="2.2" fill="#11162A"/>
+          <circle cx="50" cy="36" r="2.2" fill="#11162A"/>
+          <path d="M30 54 Q40 60 50 54" stroke="#11162A" stroke-width="1.4" fill="none"/>
+          <text x="40" y="100" text-anchor="middle" class="lbl-component" font-size="13">Yolcu</text>
+          <text x="40" y="116" text-anchor="middle" class="lbl-tiny">PASSENGER</text>
+        </g>
+
+        <!-- ===== ESP32-CAM ===== -->
+        <g>
+          <rect x="200" y="80" width="320" height="140" fill="none" stroke="#11162A" stroke-width="1.4"/>
+          <rect x="200" y="80" width="320" height="22" fill="#11162A"/>
+          <text x="216" y="96" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="10" fill="#F1ECE0" letter-spacing="2">[ A.1 ]  KAMERA + AĞ KÖPRÜSÜ</text>
+          <text x="216" y="128" class="lbl-component" font-size="20">ESP32-CAM</text>
+          <text x="216" y="146" class="lbl-role">AI-Thinker · OV3660 Sensor</text>
+          <line x1="216" y1="156" x2="504" y2="156" stroke="#11162A" stroke-width="0.4" stroke-dasharray="1 2"/>
+          <text x="216" y="174" class="lbl-spec">Burst   5 fps × 2 s   →  10 frame</text>
+          <text x="216" y="190" class="lbl-spec">Link    Wi-Fi STA  ·  HTTP/1.1 POST</text>
+          <text x="216" y="206" class="lbl-spec">Hdr     X-Session · X-Frame-Idx/Tot</text>
+        </g>
+
+        <!-- Passenger -> ESP32-CAM -->
+        <line x1="128" y1="220" x2="198" y2="170" stroke="#11162A" stroke-width="1.2" marker-end="url(#ah)"/>
+        <text x="135" y="195" class="lbl-edge" transform="rotate(-32 135 195)">capture</text>
+
+        <!-- ===== STM32 ===== -->
+        <g>
+          <rect x="200" y="270" width="320" height="190" fill="none" stroke="#11162A" stroke-width="1.4"/>
+          <rect x="200" y="270" width="320" height="22" fill="#11162A"/>
+          <text x="216" y="286" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="10" fill="#F1ECE0" letter-spacing="2">[ A.2 ]  OLAY YÖNETİCİSİ</text>
+          <text x="216" y="318" class="lbl-component" font-size="20">STM32 NUCLEO-F767ZI</text>
+          <text x="216" y="336" class="lbl-role">FreeRTOS · State Machine</text>
+          <line x1="216" y1="346" x2="504" y2="346" stroke="#11162A" stroke-width="0.4" stroke-dasharray="1 2"/>
+          <text x="216" y="364" class="lbl-spec">In      TARA / PANİK (EXTI)</text>
+          <text x="216" y="380" class="lbl-spec">FSM     IDLE → SCAN → MATCH ⏐ NOMATCH</text>
+          <text x="216" y="396" class="lbl-spec">Timeout 15 s  →  NETERR</text>
+
+          <!-- LED + buzzer row -->
+          <g transform="translate(216,418)">
+            <circle cx="6"  cy="8" r="5" fill="none" stroke="#11162A" stroke-width="1"/>
+            <circle cx="6"  cy="8" r="2" fill="#11162A"/>
+            <text x="16" y="11" class="lbl-tiny">GREEN</text>
+            <circle cx="74" cy="8" r="5" fill="none" stroke="#B8862B" stroke-width="1"/>
+            <circle cx="74" cy="8" r="2" fill="#B8862B"/>
+            <text x="84" y="11" class="lbl-tiny" style="fill:#8C631A">AMBER</text>
+            <circle cx="140" cy="8" r="5" fill="none" stroke="#9C2A21" stroke-width="1"/>
+            <circle cx="140" cy="8" r="2" fill="#9C2A21"/>
+            <text x="150" y="11" class="lbl-tiny" style="fill:#9C2A21">RED</text>
+            <rect x="208" y="3" width="14" height="10" fill="none" stroke="#11162A" stroke-width="1"/>
+            <text x="226" y="11" class="lbl-tiny">BUZZER</text>
+          </g>
+        </g>
+
+        <!-- ESP32 <-> STM32 (UART1) -->
+        <line x1="360" y1="220" x2="360" y2="268" stroke="#11162A" stroke-width="1.4" marker-end="url(#ah)" marker-start="url(#ah)"/>
+        <rect x="370" y="232" width="170" height="22" fill="#F1ECE0"/>
+        <text x="378" y="247" class="lbl-edge">UART1 / 115200 · CAPTURE ⇌ RESULT</text>
+
+        <!-- ===== HM-10 (in-vehicle, bridge to phone) ===== -->
+        <g>
+          <rect x="600" y="358" width="140" height="84" fill="none" stroke="#11162A" stroke-width="1.4"/>
+          <rect x="600" y="358" width="140" height="20" fill="#11162A"/>
+          <text x="612" y="372" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="9" fill="#F1ECE0" letter-spacing="2">[ A.3 ]  BLE BRIDGE</text>
+          <text x="612" y="394" class="lbl-component" font-size="14">HM-10</text>
+          <text x="612" y="410" class="lbl-spec" font-size="10">UART2 / 9600</text>
+          <text x="612" y="424" class="lbl-spec" font-size="10">GATT  FFE0/FFE1</text>
+        </g>
+
+        <!-- STM32 -> HM-10 (UART2) -->
+        <line x1="522" y1="400" x2="598" y2="400" stroke="#11162A" stroke-width="1.4" marker-end="url(#ah)"/>
+        <text x="528" y="392" class="lbl-edge">UART2 · MATCH / PANIC</text>
+
+        <!-- ===== Wi-Fi node (between A and B) ===== -->
+        <g transform="translate(620,110)">
+          <!-- Wi-Fi arcs icon -->
+          <g fill="none" stroke="#11162A" stroke-width="1.4">
+            <path d="M0 36 Q20 16 40 36"/>
+            <path d="M6 30 Q20 18 34 30" opacity="0.7"/>
+            <path d="M12 24 Q20 18 28 24" opacity="0.5"/>
+            <circle cx="20" cy="40" r="2.4" fill="#11162A"/>
+          </g>
+          <text x="20" y="64" text-anchor="middle" class="lbl-tiny">Wi-Fi · 2.4 GHz</text>
+        </g>
+
+        <!-- ESP32-CAM -> EC2 (HTTP POST) -->
+        <path d="M520 138 H 640 H 800" fill="none" stroke="#11162A" stroke-width="1.4" marker-end="url(#ah)"/>
+        <rect x="650" y="125" width="150" height="22" fill="#F1ECE0"/>
+        <text x="658" y="140" class="lbl-edge">HTTP POST · image/jpeg</text>
+
+        <!-- EC2 -> ESP32-CAM (JSON) — accent line -->
+        <path d="M800 178 H 640 H 520" fill="none" stroke="#B8862B" stroke-width="1.4" marker-end="url(#ah-ac)"/>
+        <rect x="650" y="165" width="180" height="22" fill="#F1ECE0"/>
+        <text x="658" y="180" class="lbl-edge-ac">JSON · match;name;sim</text>
+
+        <!-- ===== EC2 + InsightFace ===== -->
+        <g>
+          <rect x="800" y="80" width="340" height="380" fill="none" stroke="#11162A" stroke-width="1.4"/>
+          <rect x="800" y="80" width="340" height="22" fill="#11162A"/>
+          <text x="816" y="96" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="10" fill="#F1ECE0" letter-spacing="2">[ B.1 ]  BULUT TANIMA · INFERENCE</text>
+          <text x="816" y="128" class="lbl-component" font-size="20">AWS EC2</text>
+          <text x="816" y="146" class="lbl-role">m7i-flex.large · Frankfurt</text>
+          <line x1="816" y1="156" x2="1124" y2="156" stroke="#11162A" stroke-width="0.4" stroke-dasharray="1 2"/>
+
+          <!-- Stack inside -->
+          <g>
+            <text x="816" y="178" class="lbl-spec">Container  Docker · Gunicorn (-w 1)</text>
+            <text x="816" y="196" class="lbl-spec">Service    Flask  ·  /search</text>
+            <text x="816" y="214" class="lbl-spec">Model      InsightFace buffalo_l</text>
+            <text x="838" y="230" class="lbl-spec" style="fill:#5B6075">↳ ArcFace R100 · 512-D embed</text>
+
+            <line x1="816" y1="246" x2="1124" y2="246" stroke="#11162A" stroke-width="0.3" stroke-dasharray="1 3"/>
+
+            <text x="816" y="266" class="lbl-spec">Pipeline (per burst)</text>
+            <text x="826" y="282" class="lbl-spec" style="fill:#5B6075">1. RetinaFace detect</text>
+            <text x="826" y="298" class="lbl-spec" style="fill:#5B6075">2. Quality gate</text>
+            <text x="846" y="312" class="lbl-tiny" style="fill:#5B6075">blur ≥ 10 · |yaw| ≤ 30° · area ≥ 80²</text>
+            <text x="826" y="328" class="lbl-spec" style="fill:#5B6075">3. ArcFace embed · L2-norm</text>
+            <text x="826" y="344" class="lbl-spec" style="fill:#5B6075">4. Centroid (10-frame mean)</text>
+            <text x="826" y="360" class="lbl-spec" style="fill:#5B6075">5. Cosine sim ≥ 0.40 → match</text>
+            <text x="826" y="376" class="lbl-spec" style="fill:#5B6075">6. Passive liveness (σ-embed)</text>
+
+            <line x1="816" y1="392" x2="1124" y2="392" stroke="#11162A" stroke-width="0.3" stroke-dasharray="1 3"/>
+
+            <text x="816" y="412" class="lbl-spec">DB         pickle · L2-normalised</text>
+            <text x="816" y="430" class="lbl-spec">Endpoint   18.192.45.175:8000</text>
+            <text x="816" y="448" class="lbl-tiny">FAZ 1 · HTTP · public IP</text>
+          </g>
+        </g>
+
+        <!-- ===== Android phone ===== -->
+        <g>
+          <rect x="1200" y="200" width="220" height="200" fill="none" stroke="#11162A" stroke-width="1.4"/>
+          <rect x="1200" y="200" width="220" height="22" fill="#11162A"/>
+          <text x="1212" y="216" font-family="IBM Plex Mono, monospace" font-weight="500" font-size="10" fill="#F1ECE0" letter-spacing="2">[ C.1 ]  MOBİL TETİKLEYİCİ</text>
+          <text x="1212" y="244" class="lbl-component" font-size="17">Android</text>
+          <text x="1212" y="260" class="lbl-role">Kotlin · Compose · API 26+</text>
+          <line x1="1212" y1="270" x2="1408" y2="270" stroke="#11162A" stroke-width="0.4" stroke-dasharray="1 2"/>
+          <text x="1212" y="288" class="lbl-spec">Role     BLE Central (FG service)</text>
+          <text x="1212" y="304" class="lbl-spec">Hotspot  Wi-Fi (Phone → ESP)</text>
+          <text x="1212" y="320" class="lbl-spec">On MATCH</text>
+
+          <!-- 155 dial pad -->
+          <g transform="translate(1212,332)">
+            <rect x="0" y="0" width="196" height="56" fill="none" stroke="#9C2A21" stroke-width="1.2"/>
+            <text x="98" y="26" text-anchor="middle" font-family="Newsreader, serif" font-weight="500" font-size="22" fill="#9C2A21" letter-spacing="6">155</text>
+            <text x="98" y="46" text-anchor="middle" class="lbl-tiny" style="fill:#9C2A21">Intent.ACTION_CALL("tel:155")</text>
+          </g>
+        </g>
+
+        <!-- HM-10 -> Android (BLE) -->
+        <path d="M740 400 C 880 410, 1080 350, 1198 300" fill="none" stroke="#11162A" stroke-width="1.4" marker-end="url(#ah)"/>
+        <rect x="850" y="372" width="170" height="22" fill="#F1ECE0"/>
+        <text x="858" y="387" class="lbl-edge">BLE GATT notify</text>
+
+        <!-- Android -> 155 cellular dial (signal color) -->
+        <path d="M1310 400 V 470" fill="none" stroke="#9C2A21" stroke-width="1.4" marker-end="url(#ah-sig)"/>
+        <text x="1320" y="445" class="lbl-edge-sig">GSM · Polis İmdat</text>
+
+        <!-- Side bracket A.1+A.2+A.3 visual cue -->
+        <line x1="174" y1="78" x2="174" y2="462" stroke="#11162A" stroke-width="0.6"/>
+        <line x1="174" y1="78" x2="186" y2="78" stroke="#11162A" stroke-width="0.6"/>
+        <line x1="174" y1="462" x2="186" y2="462" stroke="#11162A" stroke-width="0.6"/>
+        <text transform="translate(168 270) rotate(-90)" text-anchor="middle" class="lbl-bracket-side">In-Vehicle Module</text>
+
+        <!-- Scale ruler / decorative bottom rule (academic touch) -->
+        <line x1="40" y1="510" x2="1440" y2="510" stroke="#11162A" stroke-width="0.4"/>
+        <g font-family="IBM Plex Mono, monospace" font-size="8" fill="#5B6075" letter-spacing="1">
+          <text x="40"   y="528">[A]</text>
+          <text x="780"  y="528">[B]</text>
+          <text x="1180" y="528">[C]</text>
+          <text x="1440" y="528" text-anchor="end">Fig. 1 — Sistem Topolojisi</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="figure-caption">
+      <span class="fig">Şekil 1</span>
+      <span>Uçtan uca veri akışı: yolcu yüzü → ESP32-CAM (10-frame burst) → Wi-Fi · HTTP/POST → AWS EC2 (Flask + InsightFace buffalo_l) → JSON · match → STM32 olay yöneticisi → HM-10 BLE → Android · Intent.ACTION_CALL("tel:155"). Akıllı çağrı yalnızca eşleşme durumunda tetiklenir.</span>
+    </div>
+
+    <!-- ===== DATA FLOW STRIP ===== -->
+    <div class="flow-track">
+      <div class="flow-step">
+        <div class="n">00.0 s</div>
+        <div class="h">Tetikleme</div>
+        <p>Sürücü <b>TARA</b> butonuna basar. STM32 SARI LED yanar; HM-10 üzerinden telefona <span class="mono">SCANNING</span> mesajı gönderilir.</p>
+      </div>
+      <div class="flow-step">
+        <div class="n">02.0 s</div>
+        <div class="h">Burst Yakalama</div>
+        <p>ESP32-CAM <b>5 FPS × 2 s</b> ile 10 JPEG frame yakalar ve Wi-Fi üzerinden EC2'ye POST eder. Her frame oturum/sıra başlığı taşır.</p>
+      </div>
+      <div class="flow-step">
+        <div class="n">04.5 s</div>
+        <div class="h">Kalite Filtresi</div>
+        <p>Server her frame'de RetinaFace tespiti yapar; <b>blur, yaw, alan, det skoru</b> eşiklerini geçen frame'lerden ArcFace embedding çıkarır.</p>
+      </div>
+      <div class="flow-step">
+        <div class="n">05.5 s</div>
+        <div class="h">Centroid Eşleştirme</div>
+        <p>Geçerli embedding'lerin <b>centroid</b>'i alınır. DB ile kosinüs benzerliği <span class="mono">≥ 0.40</span> ise MATCH; aksi halde NOMATCH.</p>
+      </div>
+      <div class="flow-step">
+        <div class="n">07.0 s</div>
+        <div class="h">Sürücü &amp; Çağrı</div>
+        <p>STM32 KIRMIZI LED + buzzer; HM-10 → Android. Telefon <span class="mono">Intent.ACTION_CALL</span> ile otomatik <b>155</b> arar.</p>
+      </div>
+    </div>
+
+    <!-- ===== SUBSYSTEM 4-COLUMN GRID ===== -->
+    <div class="subsystems">
+      <div class="subsys">
+        <div class="idx">A.1 — Edge</div>
+        <h4>ESP32-CAM</h4>
+        <div class="role">Görüntü + Ağ Köprüsü</div>
+        <p>AI-Thinker modülü, entegre OV3660 sensörü ile birlikte hem kamera hem Wi-Fi
+        radyosunu barındırır. STM32'den UART üzerinden <span class="mono">CAPTURE</span> komutu
+        alındığında 10 frame'lik burst yakalar; her frame için
+        <span class="mono">X-Session-Id</span>, <span class="mono">X-Frame-Index</span> ve
+        <span class="mono">X-Frame-Total</span> başlıklarıyla EC2'ye HTTP POST atar.
+        Sonuç JSON'unu parse edip STM32'ye CSV olarak iletir.</p>
+      </div>
+      <div class="subsys">
+        <div class="idx">A.2 — Logic</div>
+        <h4>STM32 F767ZI</h4>
+        <div class="role">Gömülü Olay Yöneticisi</div>
+        <p>FreeRTOS üzerinde <span class="mono">IDLE / SCANNING / MATCH / NOMATCH / PANIC / NETERR</span>
+        state machine. TARA ve PANİK butonları EXTI ile yakalanır. Yeşil, sarı ve kırmızı LED'ler
+        ile aktif buzzer sürücüye dikkat dağıtmayan görsel ve işitsel geri bildirim verir.
+        UART1 (115200) ile ESP32-CAM, UART2 (9600) ile HM-10 arasında köprü kurar; 15 s'lik
+        zaman aşımı NETERR durumuna geçirir.</p>
+      </div>
+      <div class="subsys">
+        <div class="idx">B.1 — Cloud</div>
+        <h4>Flask · InsightFace</h4>
+        <div class="role">Tanıma Sunucusu</div>
+        <p>AWS m7i-flex.large (Frankfurt) üzerinde Docker konteyneri. Açık kaynak
+        <b>InsightFace buffalo_l</b> (ArcFace R100) ile her yüzden 512 boyutlu embedding
+        çıkarılır. Oturum yöneticisi yalnızca kalite-geçen embedding'lerin centroid'ini
+        hesaplar; pickle DB ile kosinüs benzerliği ölçer. Cross-frame embedding standart sapması
+        ek bir model gerektirmeden <i>pasif canlılık</i> sinyali olarak kullanılır.
+        Gunicorn <span class="mono">-w 1</span> ile oturum bütünlüğü garanti edilir.</p>
+      </div>
+      <div class="subsys">
+        <div class="idx">C.1 — Mobile</div>
+        <h4>Android · BLE</h4>
+        <div class="role">Otomatik Çağrı Tetikleyici</div>
+        <p>Kotlin + Jetpack Compose tabanlı uygulama, Foreground Service içinde sürekli BLE
+        Central olarak çalışır; HM-10'un FFE0/FFE1 karakteristiğine subscribe olur. MATCH
+        bildirimi geldiğinde <span class="mono">Intent.ACTION_CALL("tel:155")</span> ile
+        otomatik <b>Polis İmdat</b> çağrısı başlatır. PANIC bildirimi, sürücünün manuel
+        tetiklediği acil durumda aynı akışı işletir. iOS'un çağrı sandbox kısıtı nedeniyle
+        platform olarak Android tercih edilmiştir.</p>
+      </div>
+    </div>
+
+    <!-- ===== METRICS STRIP ===== -->
+    <div class="metrics">
+      <div class="metric">
+        <div class="num">10<span class="unit">frame</span></div>
+        <div class="lbl">Burst boyutu</div>
+      </div>
+      <div class="metric">
+        <div class="num">5–7<span class="unit">s</span></div>
+        <div class="lbl">Uçtan uca gecikme</div>
+      </div>
+      <div class="metric">
+        <div class="num">0.40<span class="unit">cos</span></div>
+        <div class="lbl">Eşleşme eşiği</div>
+      </div>
+      <div class="metric">
+        <div class="num">&lt; 500<span class="unit">₺</span></div>
+        <div class="lbl">Ek donanım maliyeti</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================
+       §4 — SONUÇ VE ÖNERİLER + PROTOTYPE PHOTO
+       ======================================================== -->
+  <section class="sec">
+    <div class="sec-marker">
+      <span class="num">§ 04</span>
+      <span class="dash"></span>
+      <h2>Sonuç ve Öneriler <span class="alt">— Findings &amp; Future Work</span></h2>
+    </div>
+
+    <div class="conclusion">
+      <!-- Photo placeholder for printed insertion -->
+      <div class="photo-placeholder">
+        <div class="ph-top">
+          <span class="fig">Şekil 2 · Prototip Devre</span>
+          <span class="ph-tick"></span>
+        </div>
+        <div class="ph-mid">
+          <div class="label">Prototip Devre Fotoğrafı</div>
+          <div class="sub">— bu alana eklenecek —</div>
+        </div>
+        <div class="ph-bot">
+          <span class="ph-tick-bl"></span>
+          <span class="ph-tick-br"></span>
+        </div>
+      </div>
+
+      <!-- Findings + recommendations -->
+      <div class="conclusion-body">
+        <p>Proje kapsamında görüntü yakalama, bulut tabanlı yüz tanıma, gömülü olay yönetimi ve
+        mobil çağrı tetikleme bileşenleri uçtan uca entegre edilerek başarıyla çalıştırılmıştır.
+        AWS EC2 üzerinde host edilen InsightFace sunucusu, 10 frame'lik bir burst için tipik
+        olarak 5–7 saniyede yanıt vermekte; multi-frame centroid agregasyonu tek-frame
+        yaklaşımlara göre belirgin biçimde daha gürbüz sonuçlar üretmektedir. Cross-frame
+        embedding standart sapması, ek bir model gerektirmeden <b>pasif canlılık (anti-spoof)</b>
+        sinyali olarak kullanılmıştır. STM32 olay yöneticisi sayesinde sürücü tek butonla
+        taramayı başlatabilmekte; sistem kullanıcı arayüzü yerine LED + buzzer ile
+        dikkat dağıtmayan bir geri bildirim sunmaktadır.</p>
+
+        <div class="recs">
+          <div class="meta-label" style="color:var(--ink-soft); margin-bottom:1.5mm">Geliştirme Önerileri · Future Work</div>
+          <ul>
+            <li><b>HTTPS + JWT auth (Faz 2)</b> — EC2 önüne Caddy/nginx + Let's Encrypt eklenerek haberleşme TLS ile koruma altına alınmalıdır.</li>
+            <li><b>Yerel inference</b> — Bulutsuz çalışma için ESP32-S3 / Jetson Nano sınıfı SoC üzerinde quantized ArcFace modeli denenebilir.</li>
+            <li><b>Filo entegrasyonu</b> — Birden çok aracın merkezi panele bağlanması için MQTT veya WebSocket tabanlı olay tablosu eklenmelidir.</li>
+            <li><b>KVKK &amp; veri yönetimi</b> — Yolcu görüntüleri RAM'de tutulur, sunucuya disk yazımı yapılmaz; saklama politikası hukuki çerçeveyle genişletilmelidir.</li>
+            <li><b>FAR / FRR ölçümü</b> — 20–30 kişilik test setinde farklı ışık (100/300/600 lx) ve mesafe (30–120 cm) koşullarında doğruluk tablosu raporlanacaktır.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================
+       COLOPHON / FOOTER
+       ======================================================== -->
+  <footer class="colophon">
+    <div class="left">
+      <span class="accent">Stack</span> &nbsp; ESP-IDF · STM32CubeIDE · FreeRTOS · Flask · InsightFace · Docker · AWS EC2 · Kotlin · BLE GATT
+    </div>
+    <div class="center">
+      Ege Üniversitesi · Mühendislik Fakültesi · Elektrik–Elektronik Müh.
+    </div>
+    <div class="right">
+      Poster set in <span class="accent">Newsreader</span> &amp; <span class="accent">Source Serif 4</span> · MMXXVI
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
