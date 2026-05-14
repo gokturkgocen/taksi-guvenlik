@@ -17,8 +17,34 @@
 #include <WiFiClientSecure.h>
 #endif
 
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
 #include "esp_camera.h"
 #include "config.h"
+
+/* ─── BLE GATT (replaces HM-10) ─── */
+#define BLE_DEVICE_NAME   "TaxiGuard"
+#define BLE_SERVICE_UUID  "0000ffe0-0000-1000-8000-00805f9b34fb"
+#define BLE_CHAR_UUID     "0000ffe1-0000-1000-8000-00805f9b34fb"
+
+static BLEServer        *bleServer   = nullptr;
+static BLECharacteristic *bleNotify  = nullptr;
+static volatile bool     bleConn     = false;
+
+class BleSrvCb : public BLEServerCallbacks {
+    void onConnect(BLEServer *) override   { bleConn = true;  Serial.println("[BLE] phone connected"); }
+    void onDisconnect(BLEServer *) override { bleConn = false; Serial.println("[BLE] phone disconnected");
+                                              BLEDevice::startAdvertising(); }
+};
+
+static void ble_send(const char *msg) {
+    if (!bleNotify || !bleConn) return;
+    bleNotify->setValue((uint8_t*)msg, strlen(msg));
+    bleNotify->notify();
+}
 
 static HardwareSerial StmUart(STM_UART_NUM);
 
@@ -265,6 +291,25 @@ void setup(void) {
         Serial.println("\n[CAM] wifi FAILED");
     }
 
+    /* BLE peripheral — Android (or nRF Connect) will connect here. */
+    BLEDevice::init(BLE_DEVICE_NAME);
+    bleServer = BLEDevice::createServer();
+    bleServer->setCallbacks(new BleSrvCb());
+    BLEService *svc = bleServer->createService(BLE_SERVICE_UUID);
+    bleNotify = svc->createCharacteristic(
+        BLE_CHAR_UUID,
+        BLECharacteristic::PROPERTY_NOTIFY |
+        BLECharacteristic::PROPERTY_READ   |
+        BLECharacteristic::PROPERTY_WRITE);
+    bleNotify->addDescriptor(new BLE2902());
+    bleNotify->setValue("ready");
+    svc->start();
+    BLEAdvertising *adv = BLEDevice::getAdvertising();
+    adv->addServiceUUID(BLE_SERVICE_UUID);
+    adv->setScanResponse(true);
+    BLEDevice::startAdvertising();
+    Serial.println("[BLE] advertising as " BLE_DEVICE_NAME);
+
     stm_send("HB\n");
 }
 
@@ -285,7 +330,14 @@ void loop(void) {
                 String cmd = rx_line;
                 rx_line = "";
                 Serial.printf("[CAM] stm: %s\n", cmd.c_str());
-                if (cmd == "CAPTURE") run_burst();
+                if (cmd == "CAPTURE") {
+                    run_burst();
+                } else {
+                    /* All other STM messages (MATCH/NOMATCH/SCANNING/PANIC/NETERR/HB)
+                     * are events for the phone — forward to BLE notify. */
+                    String withNl = cmd + "\n";
+                    ble_send(withNl.c_str());
+                }
             }
         } else if (rx_line.length() < 120) {
             rx_line += c;

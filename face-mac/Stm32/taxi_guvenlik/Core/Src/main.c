@@ -684,7 +684,10 @@ static void send_cam(const char *line) {
 }
 
 static void send_phone(const char *line) {
-    HAL_UART_Transmit(&huart2, (uint8_t*)line, strlen(line), 200);
+    /* Plan B v2: HM-10 is gone. Phone messages now go to ESP32-CAM over the
+     * same USART6 link as CAPTURE; ESP-CAM forwards them as BLE notifications
+     * on FFE0/FFE1, replacing the HM-10 path. */
+    HAL_UART_Transmit(&huart6, (uint8_t*)line, strlen(line), 200);
 }
 
 /* Parse a single line received from ESP32-CAM and drive state machine. */
