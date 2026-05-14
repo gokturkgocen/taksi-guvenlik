@@ -250,7 +250,16 @@ Faz 1 ↔ Faz 2 farkı: `config.h`'da `SERVER_URL` ve `USE_TLS` değişir. Refla
 
 ## Android app v2 (yeni)
 
-Konum: `face-mac/android-v2/` (henüz boş, donanım gelince başlayacak)
+Konum: `face-mac/android-v2/` — **iskelet hazır, donanım yokken bile build edilebilir**
+
+**Mevcut durum (2026-05):** Compose + Kotlin tabanlı uygulama iskeleti yazıldı. Çekirdek
+akış (BLE scan → GATT connect → FFE1 subscribe → frame parse → 155 dial) tam yazılı.
+Donanım yokken doğrulama için ekranda **"DEV: Simulate MATCH"** butonu var — `Hm10Service`
+kendi içinde sahte `MATCH:Test_Subject;0.95\n` satırı işliyor, böylece tek telefonda parse +
+dial akışı test edilebilir. HM-10 elde olunca sadece BLE scanner gerçek modülü bulup
+bağlanacak, geri kalan değişmeyecek.
+
+Detay: `face-mac/android-v2/README.md`
 
 Stack:
 - Kotlin + Jetpack Compose

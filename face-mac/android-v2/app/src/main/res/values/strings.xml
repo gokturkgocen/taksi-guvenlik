@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">TaxiGuard</string>
+
+    <string name="notif_channel_name">Yolcu Tarama Servisi</string>
+    <string name="notif_channel_desc">HM-10 BLE bağlantısını canlı tutar.</string>
+    <string name="notif_title">TaxiGuard çalışıyor</string>
+    <string name="notif_text">Yolcu tarama servisi aktif — BLE dinleniyor.</string>
+</resources>

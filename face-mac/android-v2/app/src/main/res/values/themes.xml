@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Compose-only app, so the XML theme just needs to be Material 3 +
+         not draw a system action bar. Real colour scheme lives in
+         ui/theme/Theme.kt. -->
+    <style name="Theme.TaxiGuard" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@android:color/transparent</item>
+    </style>
+</resources>

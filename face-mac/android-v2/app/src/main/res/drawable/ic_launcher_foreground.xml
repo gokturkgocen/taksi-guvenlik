@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Shield monogram against the navy adaptive-icon background. -->
+    <path
+        android:fillColor="#C2902F"
+        android:pathData="M54,28 L34,36 v26 c0,16 12,28 20,30 8,-2 20,-14 20,-30 V36 z" />
+    <path
+        android:fillColor="#0A1F44"
+        android:pathData="M54,48 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+</vector>

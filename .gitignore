@@ -46,6 +46,17 @@ Release/
 *.map
 *.list
 
+# Android (gradle artifacts + local config; sources stay tracked)
+face-mac/android-v2/.gradle/
+face-mac/android-v2/build/
+face-mac/android-v2/app/build/
+face-mac/android-v2/local.properties
+face-mac/android-v2/.idea/
+face-mac/android-v2/captures/
+face-mac/android-v2/.cxx/
+face-mac/android-v2/app/release/
+face-mac/android-v2/**/*.iml
+
 # Server runtime data
 face-mac/server/venv/
 face-mac/server/data/
