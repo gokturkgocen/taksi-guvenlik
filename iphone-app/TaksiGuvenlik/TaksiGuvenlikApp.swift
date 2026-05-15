@@ -3,20 +3,18 @@ import SwiftUI
 @main
 struct TaksiGuvenlikApp: App {
     @State private var appState = AppState()
-    @StateObject private var ble: BLEManager
-
-    init() {
-        let manager = BLEManager()
-        _ble = StateObject(wrappedValue: manager)
-    }
+    @State private var auth = AuthManager()
+    @StateObject private var ble = BLEManager()
 
     var body: some Scene {
         WindowGroup {
-            ContentView(ble: ble)
+            RootView()
                 .environment(appState)
-                .onAppear {
-                    // Wire BLE → AppState so incoming events update the UI.
+                .environment(auth)
+                .task {
+                    // Wire BLE → AppState once; subsequent events flow through.
                     ble.appState = appState
+                    await auth.bootstrap()
                 }
                 .preferredColorScheme(.dark)
         }

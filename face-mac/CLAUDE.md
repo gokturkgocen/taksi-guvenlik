@@ -26,7 +26,7 @@
    Yolcu yüzü ─► ESP32-CAM (AI-Thinker, OV3660)            │
                 │  • 5 FPS × 2 s = 10 frame burst          │
                 │  • Wi-Fi STA (telefon hotspot 4G/5G)     │
-                │  • HTTP POST → EC2 (multi-frame agreg.)  │
+                │  • HTTP POST → EC2 /search               │
                 │  • BLE peripheral: "TaxiGuard"           │
                 │     GATT service FFE0, char FFE1         │
                 │     forwards STM events to phone         │
@@ -48,24 +48,47 @@
                                   │
                                   │ BLE GATT (FFE0/FFE1) — ESP-CAM advertises
                                   ▼
-                          iPhone 16 (SwiftUI app `iphone-app/`)
-                          - CoreBluetooth central
-                          - "TaxiGuard" otomatik connect
-                          - SCANNING/MATCH/NOMATCH/PANIC/NETERR notify
-                          - MATCH/PANIC'te tel://155 dialer
-                          - Hotspot kaynak (4G/5G veri)
+                          iPhone 16 (SwiftUI, `iphone-app/`)
+                          - Login + Register (EC2 /auth, kullanıcı+plaka)
+                          - Token Keychain'de, RootView auth switch
+                          - TabView: Dashboard / Scan / Profile
+                          - CoreBluetooth central → "TaxiGuard"
+                          - MATCH/PANIC → tel://<emergencyNumber> dialer
+                            (test: 05435207315, demo: 155)
+                          - Hotspot kaynak (4G/5G veri, ESP'ye SSID)
 
-                          EC2 m7i-flex.large (eu-central-1, Frankfurt)
+                          EC2 m7i-flex.large (eu-central-1, Ekin'in hesabı)
                           http://18.192.45.175:8000
-                          ┌──────────────────────────────┐
-                          │ Flask + InsightFace buffalo_l │
-                          │ session manager + multi-frame│
-                          │ centroid agregasyon          │
-                          │ pickle DB (Gokturk + Ekin)   │
-                          │ passive liveness skoru       │
-                          │ kalite filtresi (blur min 10)│
-                          └──────────────────────────────┘
+                          ┌──────────────────────────────────────────┐
+                          │ Flask + InsightFace buffalo_l            │
+                          │ /search → multi-frame centroid agregasyon │
+                          │ /auth/{register,login,me,logout}         │
+                          │   - SQLite users.db (werkzeug hash)      │
+                          │   - bearer token, expiry yok             │
+                          │ pickle embeddings.pkl + sqlite users.db  │
+                          │ passive liveness skoru                   │
+                          │ kalite filtresi (blur min 10)            │
+                          └──────────────────────────────────────────┘
 ```
+
+## Auth akışı (iPhone)
+
+```
+1. Uygulama açılır → AuthManager.bootstrap()
+   - Keychain'de token varsa: status = .loggedIn, ardından /auth/me ile sessiz doğrula.
+     401 dönerse local sil → .loggedOut. Network hatasında token korunur (offline-first).
+   - Token yoksa: status = .loggedOut → LoginView.
+2. Login: POST /auth/login {username, password}
+   - 200 → {token, username, plate} → Keychain'e yaz → HomeView (TabView).
+   - 401 → "Kullanıcı adı veya şifre yanlış." mesajı.
+3. Register: POST /auth/register {username, password, plate}
+   - 201 → {token, username, plate} → Keychain'e yaz → HomeView (otomatik login).
+   - 400 bad_plate / bad_password, 409 username_taken.
+4. Logout: ProfileView "Çıkış Yap" → POST /auth/logout (Bearer) → Keychain temizle → LoginView.
+```
+
+Plaka regex: `^\d{2}\s?[A-Z]{1,3}\s?\d{2,4}$` — istemcide canlı validation, sunucuda da kontrol.
+Plaka **unique değil**: aynı plakaya birden fazla şoför hesabı açılabilir (demo'da pratik).
 
 ## Veri akışı (10-frame burst)
 
@@ -221,12 +244,13 @@ iPhone abone olur, notify'lar gelir, her satır iPhone parser'ına işlenir:
 - `NETERR\n` → sarı kart
 - `HB\n` → state.lastHeartbeat güncellenir
 
-## Sunucu (Flask + InsightFace)
+## Sunucu (Flask + InsightFace + Auth)
 
 Konum: `face-mac/server/`
 
 Dosyalar:
-- `app.py` — Flask routes, session manager, agregasyon
+- `app.py` — Flask routes, session manager, agregasyon, `auth_bp` register
+- `auth.py` — `/auth/*` blueprint: SQLite users.db, werkzeug hash, bearer token
 - `recognition.py` — InsightFace wrapper (buffalo_l), kalite filtresi
 - `db.py` — pickle DB (L2 normalized cosine match, v1 Person backward-compat shim)
 - `enroll.py` — CLI: tek fotoğrafla DB'ye kişi ekle
@@ -238,6 +262,18 @@ Endpoint'ler:
 - `POST /search` (X-Session-Id / X-Frame-Index / X-Frame-Total + JPEG body)
   - Ara frame'lerde: `{status: "continue", quality_ok_this_frame: bool, ...}`
   - Son frame'de: `{match: bool, name: str, similarity: float, frames_used: int, liveness_score: float, ...}`
+- `POST /auth/register` → `{username, password, plate}` → 201 `{token, username, plate}` veya 400 bad_*  / 409 username_taken
+- `POST /auth/login` → `{username, password}` → 200 `{token, username, plate}` veya 401 invalid_credentials
+- `GET  /auth/me` (Authorization: Bearer ..) → 200 `{username, plate}` veya 401
+- `POST /auth/logout` (Authorization: Bearer ..) → 200 `{ok: true}` (token DB'den silinir)
+
+**Auth notları:**
+- DB: SQLite, `data/users.db` (embeddings.pkl ile aynı volume).
+- Şifre: `werkzeug.security.generate_password_hash` (yeni dep yok).
+- Token: `secrets.token_urlsafe(32)`, expiry yok (demo basit).
+- Plaka regex (server + client): `^\d{2}\s?[A-Z]{1,3}\s?\d{2,4}$` — `34 ABC 1234`.
+- Plaka **unique değil**, username unique.
+- `_init_db()` modül import'unda çalışır (gunicorn worker boot).
 
 **Kalite filtresi (recognition.py):**
 - det_score ≥ 0.7
@@ -300,12 +336,23 @@ Build + flash: CubeIDE → Project → Refresh → Build → Run.
 Konum: `iphone-app/`
 
 Stack:
-- SwiftUI, iOS 17+
-- 4 dosya: `TaksiGuvenlikApp.swift`, `AppState.swift`, `BLEManager.swift`, `ContentView.swift`
-- CoreBluetooth central
-- Tek ekran UI: BLE durum badge'i + büyük renkli state kartı + olay log'u
-- Auto-dial: MATCH veya PANIC alınca `tel://155` URL'i açılır (iOS dialer)
-- Info.plist (project.yml içinden generate): BT permission + tel:// scheme + bluetooth-central background mode
+- SwiftUI, iOS 17+, `@Observable` macro state
+- 13 dosya flat klasörde:
+  - **App:** `TaksiGuvenlikApp.swift` (entry), `AppState.swift` (BLE state),
+    `Constants.swift` (server URL + plaka regex), `AppTheme.swift` (renkler + AuthField)
+  - **Auth:** `KeychainStore.swift` (token cache), `AuthManager.swift` (REST + state),
+    `LoginView.swift`, `RegisterView.swift`
+  - **Navigation:** `RootView.swift` (auth state switch),
+    `HomeView.swift` (TabView: Dashboard / Scan / Profile)
+  - **Features:** `DashboardView.swift` (greeting + sistem durumu kartı),
+    `ScanView.swift` (canlı tarama, eski ContentView'ın yeri),
+    `ProfileView.swift` (kullanıcı bilgisi + Çıkış Yap)
+  - **BLE:** `BLEManager.swift` (CoreBluetooth central, "TaxiGuard" connect)
+- CoreBluetooth central, "TaxiGuard" otomatik connect
+- Custom Info.plist: BT izinleri + `tel://` query scheme + bluetooth-central
+  background mode + `NSAllowsArbitraryLoads` (demo HTTP için, TLS'e geçince kaldır)
+- Auto-dial: MATCH veya PANIC alınca `tel://<BLEManager.emergencyNumber>` açılır.
+  Test mode: `"05435207315"`. **Demo öncesi `"155"` yap.**
 
 Build + run:
 1. `open /Users/gokturkgocen/Bitirme/iphone-app/TaksiGuvenlik.xcodeproj`
@@ -313,10 +360,13 @@ Build + run:
 3. Xcode'da target = kendi iPhone'un
 4. Cmd+R → ilk seferde Settings → Device Management → Trust
 
-Şu an sade UI'da:
-- Üst: "Taksi Güvenlik" + BLE bağlantı durum noktası
-- Orta: büyük renkli state kartı (IDLE/SCANNING/MATCH/NOMATCH/PANIC/NETERR)
-- Alt: scroll edilebilir olay log'u (timestamp + ham satır)
+UX akışı:
+1. İlk açılışta token yoksa Login ekranı (büyük orange CTA, alt link "Kayıt ol").
+2. Kayıt: kullanıcı adı + şifre (≥6) + TR plaka (canlı regex validation).
+3. Login/Register sonrası HomeView (TabView):
+   - **Ana Sayfa:** "Hoş geldin {username}" + plaka + sistem durum kartı + ipucu kartı + son 5 olay
+   - **Tarama:** eski ContentView (BLE state badge + büyük renkli state kart + olay log)
+   - **Profil:** avatar + username + plaka + sunucu/acil çağrı/sürüm + "Çıkış Yap"
 
 Xcode project XcodeGen ile yönetiliyor (`project.yml`). Dosya ekle/sil yapınca:
 ```bash
@@ -336,18 +386,22 @@ xcodegen
 - ✅ STM B1 USER → CAPTURE → ESP burst → AWS match → RESULT → STM MATCH state
 - ✅ ESP-CAM BLE peripheral "TaxiGuard" advertising
 - ✅ iPhone app `TaxiGuard`'a otomatik bağlanıyor, FFE1 notify alıyor
-- ✅ MATCH'te iOS dialer 155 ile açılıyor, şoför tek tık ile arıyor
+- ✅ MATCH'te iOS dialer açılıyor, şoför tek tık ile arıyor
 - ✅ Olay log'u UI'da görünüyor
+- ✅ EC2 `/auth/{register,login,me,logout}` (SQLite + werkzeug hash + bearer token) — smoke test happy path + 4 error case geçti
+- ✅ iPhone Login + Register + Tab bar (Dashboard / Scan / Profile) + Keychain token cache (kod yazıldı, xcodegen yenilendi)
 
 **Yarı pürüzlü (henüz son test bekliyor):**
 - 🟡 MATCH ekranında "benzerlik %0" görünüyordu — BLE MTU 247'ye bump yapıldı, iPhone parser defansif yapıldı, son flash sonrası tekrar test edilecek
 - 🟡 ESP-CAM dock'tan çıkarınca brown-out riski (STM 5V yetmiyor) — fix: ESP-CAM ayrı USB güçten beslenmeli
+- 🟡 iPhone yeni auth UI henüz cihazda derlenmedi; ilk build doğrulanacak
 
 **Yapılmadı (gelecek):**
 - ⏳ 20-30 kişi enrollment + FAR/FRR ölçümü (rapor 1.3)
 - ⏳ Aydınlatma testi (100/300/600 lx) + mesafe testi (30-120 cm) — rapor Tablo 5.1
 - ⏳ Tez yazımı + sergi hazırlığı (poster `poster/poster.html` ve `poster_yeni.html` ana hatlarıyla mevcut)
 - ⏳ PANİK butonu harici fiziksel buton (opsiyonel — şu an PA0 wire'sız)
+- ⏳ Demo öncesi `BLEManager.emergencyNumber` `"05435207315"` → `"155"`
 
 ## Kilit kararlar (LOCK)
 
@@ -361,10 +415,13 @@ xcodegen
 | HSI×PLL → 216 MHz (HSE bypass **DEĞİL**) | HAL'in HSE_VALUE=25 MHz makro'su HSE bypass için yanlış, BRR hesabı sapıtıyor | HSE bypass 8 MHz |
 | iPhone (Android **şu an değil**) | Kullanıcının elinde iPhone 16, iOS dialer tel://155 tek-tık yeter, demo için pratik | Android Intent.ACTION_CALL (gelecek için Plan B, iphone-app/ rafta) |
 | Intent.ACTION_CALL yerine tel:// dialer | iOS sandbox tam otomatik aramaya izin vermez; tek-tık onay = yanlış pozitif koruma katmanı | Otomatik arama |
-| EC2 m7i-flex.large eu-central-1 | Free Plan içinde en güçlü, $200 hediye krediyle ~$23/12 gün | t3.small (burstable, FAR/FRR testinde throttle riski) |
+| EC2 m7i-flex.large eu-central-1 (Ekin'in hesabı, accountId 570814275088) | Free Plan içinde en güçlü, $200 hediye krediyle ~$23/12 gün | t3.small (burstable, FAR/FRR testinde throttle riski), Göktürk'ün t3.micro hesabı |
 | Gunicorn `-w 1` SABİT | Session state in-memory per-process; multi-worker burst'u kırar | `-w 2+` |
 | Kalite filtresi min_blur=10 (50 **DEĞİL**) | ESP-CAM küçük lens VGA: blur ~15-30 normal aralık, 50 hep eler | min_blur=50 |
 | BLE MTU 247 (varsayılan 23 **DEĞİL**) | "MATCH:Name;0.66\n" 20 byte sınırının üstüne çıkıyor, kesiliyordu | varsayılan MTU |
+| Auth: SQLite + bearer token (Google/Firebase/JWT **DEĞİL**) | Demo basit, ek dep yok, tek dosya DB, expiry-yok token yeterli | Firebase Auth, Google Sign-In, JWT karmaşası |
+| Şifre hash: `werkzeug.security` (bcrypt/argon2 **DEĞİL**) | Flask ile geliyor, ek dep gerek yok, demo seviyesi yeterli | bcrypt, argon2-cffi |
+| Acil çağrı no test moda **05435207315**, demoda **155** | Test ederken yanlışlıkla polis aranmasın | Sabit 155 |
 
 ## Red flag — sapma sinyalleri (HAYIR de)
 - "AWS Rekognition'a geri dönelim" → silindi, geri yok
@@ -380,6 +437,9 @@ xcodegen
 - "Pi 4 ekleyelim" → ESP-CAM yeterli
 - "Gunicorn worker artıralım" → session state kırılır
 - "ESP-CAM'i STM 5V'tan beslemek yeter" → brown-out, dock USB veya ayrı USB lazım
+- "Auth için Firebase / Google Sign-In / JWT ekleyelim" → SQLite + werkzeug + secrets token kilitli
+- "Demo öncesi `emergencyNumber = "05435207315"` kalsın" → HAYIR, demoda `"155"` yap
+- "Plaka unique olmasın" zaten kararı bu ama "plaka unique yapalım" da HAYIR (demo'da aynı plakayla birden fazla şoför hesabı testi gerekiyor)
 
 ## Gotcha'lar
 - **HAL HSE_VALUE makrosu**: stm32f7xx_hal_conf.h'da 25 MHz tanımlı, NUCLEO'da HSE 8 MHz. HSE bypass kullanırsan PLL hesabı 3x bozuk, UART baud sapıtır. Çözüm: HSI×PLL kullan (HSI_VALUE doğru).
@@ -407,8 +467,9 @@ Bitirme/                                  # repo kökü (https://github.com/gokt
 │   ├── CLAUDE.md                         # ⭐ BU DOSYA (ana dokümantasyon)
 │   ├── embeddings.pkl                    # EC2 DB snapshot (Gokturk + Ekin)
 │   │
-│   ├── server/                           # ⭐ Flask + InsightFace, EC2'de canlı
-│   │   ├── app.py
+│   ├── server/                           # ⭐ Flask + InsightFace + Auth, EC2'de canlı
+│   │   ├── app.py                        # /search, /health, /metrics + auth_bp register
+│   │   ├── auth.py                       # /auth/{register,login,me,logout} (SQLite)
 │   │   ├── recognition.py
 │   │   ├── db.py
 │   │   ├── enroll.py
@@ -433,12 +494,23 @@ Bitirme/                                  # repo kökü (https://github.com/gokt
 │   └── poster_yeni.html
 │
 └── iphone-app/                           # ⭐ SwiftUI iPhone app (aktif)
-    ├── project.yml                       # XcodeGen
-    ├── TaksiGuvenlik/
-    │   ├── TaksiGuvenlikApp.swift
-    │   ├── AppState.swift
-    │   ├── BLEManager.swift
-    │   └── ContentView.swift
+    ├── project.yml                       # XcodeGen (custom Info.plist, ATS bypass)
+    ├── TaksiGuvenlik/                    # 13 swift dosya flat klasör
+    │   ├── TaksiGuvenlikApp.swift        # entry, AppState + AuthManager + BLEManager wiring
+    │   ├── AppState.swift                # BLE state @Observable
+    │   ├── Constants.swift               # serverBaseURL, plateRegex
+    │   ├── AppTheme.swift                # renkler + AuthField bileşeni
+    │   ├── KeychainStore.swift           # token/username/plate cache
+    │   ├── AuthManager.swift             # /auth REST + Status enum
+    │   ├── BLEManager.swift              # CoreBluetooth central, "TaxiGuard"
+    │   ├── RootView.swift                # auth status switch (Login / Register / Home)
+    │   ├── LoginView.swift, RegisterView.swift
+    │   ├── HomeView.swift                # TabView
+    │   ├── DashboardView.swift           # greeting + sistem durum kartı
+    │   ├── ScanView.swift                # eski ContentView refactor
+    │   ├── ProfileView.swift             # kullanıcı + Çıkış Yap
+    │   ├── Info.plist                    # BT + tel:// + ATS bypass
+    │   └── Assets.xcassets
     ├── TaksiGuvenlik.xcodeproj/          # XcodeGen-generated
     └── README.md
 ```
@@ -463,6 +535,19 @@ ssh -i /Users/gokturkgocen/Bitirme/taxi-key.pem ec2-user@18.192.45.175 \
 # Server koduna kişi enroll
 ssh -i /Users/gokturkgocen/Bitirme/taxi-key.pem ec2-user@18.192.45.175 \
     'docker exec -i taxi-server python enroll.py /path/to/photo.jpg "Name_001"'
+
+# Auth smoke test
+curl -X POST -H 'Content-Type: application/json' \
+    -d '{"username":"testuser","password":"test1234","plate":"34 ABC 1234"}' \
+    http://18.192.45.175:8000/auth/register
+curl -X POST -H 'Content-Type: application/json' \
+    -d '{"username":"testuser","password":"test1234"}' \
+    http://18.192.45.175:8000/auth/login
+curl -H "Authorization: Bearer <token>" http://18.192.45.175:8000/auth/me
+
+# users.db içeriği (EC2'de docker volume'unda)
+ssh -i /Users/gokturkgocen/Bitirme/taxi-key.pem ec2-user@18.192.45.175 \
+    'sudo sqlite3 /home/ec2-user/data/users.db "SELECT username, plate, datetime(created_at,\"unixepoch\") FROM users;"'
 
 # ESP-CAM flash (dock USB Mac'te, STM UART wire'ları çekili)
 cd /Users/gokturkgocen/Bitirme/face-mac/esp32-cam
@@ -494,6 +579,7 @@ while time.time() - start < 30:
 # iPhone app build + run
 open /Users/gokturkgocen/Bitirme/iphone-app/TaksiGuvenlik.xcodeproj
 # Xcode: target = iPhone, Cmd+R
+# İlk açılışta Login ekranı → Kayıt ol → username + şifre + plaka → HomeView
 
 # iPhone app dosya ekle/sil sonrası Xcode projesini yeniden üret
 cd /Users/gokturkgocen/Bitirme/iphone-app && xcodegen

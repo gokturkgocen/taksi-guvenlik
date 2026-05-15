@@ -7,18 +7,39 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1DFB39634A1C49B4B3E1FC60 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 152B8696E462296D3AE9DECD /* DashboardView.swift */; };
+		2D013FD1FAE9E4F56C20F3A0 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AAFC46C9776BEFCD3551305 /* LoginView.swift */; };
+		398D213C06B78085DA96EEB7 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09FFCE3F3448EFECA263F95C /* HomeView.swift */; };
+		3EFA1B3CA45577DA65600D14 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95EDB1B7FD85B1E2EDAD959D /* KeychainStore.swift */; };
+		467FE03A7EF2288697A73A29 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C70217427B0DE2A3221837B /* Constants.swift */; };
+		4C0F4A2444B0E8E2C6706911 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ED2BAC284EC1BE23B379FA0 /* ProfileView.swift */; };
 		69C97DA95B9EA9A9D945F2A5 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F269BABA3145EF0B39B6ED2C /* BLEManager.swift */; };
-		794260FC5C07151FFD8729D6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F6C00DA934BE6FF364D91A /* ContentView.swift */; };
 		831DED201E8912CD3EF79CA8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1623BE218574F1984F208141 /* Assets.xcassets */; };
 		8D8D8C07480D5D7BA7962697 /* TaksiGuvenlikApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 808F9B841A6ECCA97A2106B5 /* TaksiGuvenlikApp.swift */; };
+		A51EF1491CB0B7EECEED026A /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F1BE7061A59624749D991C /* AuthManager.swift */; };
 		DFEABAE2E5F9890F92D50761 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB111FD28BF2169C6E6F7E7 /* AppState.swift */; };
+		E112050741741703ADE39A6C /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CAE53B4EF6D6347A0AC74FD /* ScanView.swift */; };
+		E382EF3CEE9D8592A8394D9C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B4B3F6E65AED3D40A6D974 /* RootView.swift */; };
+		EC2407EF4BE45B01745C8C65 /* RegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B817D2E5FE1FAAC7592779 /* RegisterView.swift */; };
+		F2E0F34702F246363336B693 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 163772E6E27EBF1614410BE6 /* AppTheme.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		00F6C00DA934BE6FF364D91A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		09FFCE3F3448EFECA263F95C /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		152B8696E462296D3AE9DECD /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		1623BE218574F1984F208141 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		1AABED576F64DF820935F3EA /* TaksiGuvenlik.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaksiGuvenlik.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		163772E6E27EBF1614410BE6 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		18B4B3F6E65AED3D40A6D974 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		1AABED576F64DF820935F3EA /* TaksiGuvenlik.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TaksiGuvenlik.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1ED2BAC284EC1BE23B379FA0 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		22880C9DF6382DE1F1D66922 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		2CAE53B4EF6D6347A0AC74FD /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
+		3C70217427B0DE2A3221837B /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		47F1BE7061A59624749D991C /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		5AAFC46C9776BEFCD3551305 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		808F9B841A6ECCA97A2106B5 /* TaksiGuvenlikApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaksiGuvenlikApp.swift; sourceTree = "<group>"; };
+		95EDB1B7FD85B1E2EDAD959D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		A9B817D2E5FE1FAAC7592779 /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
 		ACB111FD28BF2169C6E6F7E7 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		F269BABA3145EF0B39B6ED2C /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -28,9 +49,20 @@
 			isa = PBXGroup;
 			children = (
 				ACB111FD28BF2169C6E6F7E7 /* AppState.swift */,
+				163772E6E27EBF1614410BE6 /* AppTheme.swift */,
 				1623BE218574F1984F208141 /* Assets.xcassets */,
+				47F1BE7061A59624749D991C /* AuthManager.swift */,
 				F269BABA3145EF0B39B6ED2C /* BLEManager.swift */,
-				00F6C00DA934BE6FF364D91A /* ContentView.swift */,
+				3C70217427B0DE2A3221837B /* Constants.swift */,
+				152B8696E462296D3AE9DECD /* DashboardView.swift */,
+				09FFCE3F3448EFECA263F95C /* HomeView.swift */,
+				22880C9DF6382DE1F1D66922 /* Info.plist */,
+				95EDB1B7FD85B1E2EDAD959D /* KeychainStore.swift */,
+				5AAFC46C9776BEFCD3551305 /* LoginView.swift */,
+				1ED2BAC284EC1BE23B379FA0 /* ProfileView.swift */,
+				A9B817D2E5FE1FAAC7592779 /* RegisterView.swift */,
+				18B4B3F6E65AED3D40A6D974 /* RootView.swift */,
+				2CAE53B4EF6D6347A0AC74FD /* ScanView.swift */,
 				808F9B841A6ECCA97A2106B5 /* TaksiGuvenlikApp.swift */,
 			);
 			path = TaksiGuvenlik;
@@ -83,6 +115,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					D681042D97199EB6EA886D70 = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -123,8 +156,18 @@
 			buildActionMask = 2147483647;
 			files = (
 				DFEABAE2E5F9890F92D50761 /* AppState.swift in Sources */,
+				F2E0F34702F246363336B693 /* AppTheme.swift in Sources */,
+				A51EF1491CB0B7EECEED026A /* AuthManager.swift in Sources */,
 				69C97DA95B9EA9A9D945F2A5 /* BLEManager.swift in Sources */,
-				794260FC5C07151FFD8729D6 /* ContentView.swift in Sources */,
+				467FE03A7EF2288697A73A29 /* Constants.swift in Sources */,
+				1DFB39634A1C49B4B3E1FC60 /* DashboardView.swift in Sources */,
+				398D213C06B78085DA96EEB7 /* HomeView.swift in Sources */,
+				3EFA1B3CA45577DA65600D14 /* KeychainStore.swift in Sources */,
+				2D013FD1FAE9E4F56C20F3A0 /* LoginView.swift in Sources */,
+				4C0F4A2444B0E8E2C6706911 /* ProfileView.swift in Sources */,
+				EC2407EF4BE45B01745C8C65 /* RegisterView.swift in Sources */,
+				E382EF3CEE9D8592A8394D9C /* RootView.swift in Sources */,
+				E112050741741703ADE39A6C /* ScanView.swift in Sources */,
 				8D8D8C07480D5D7BA7962697 /* TaksiGuvenlikApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -138,7 +181,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 3R9ULKMUXY;
 				INFOPLIST_FILE = TaksiGuvenlik/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -203,17 +245,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDevelopmentRegion = tr;
-				INFOPLIST_KEY_CFBundleDisplayName = "Taksi Güvenlik";
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = tel;
-				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "HM-10 BLE modülünden gelen MATCH ve PANIC sinyallerini dinlemek için Bluetooth izni gerekiyor.";
-				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "HM-10 BLE modülü ile haberleşmek için Bluetooth izni gerekiyor.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIBackgroundModes = "bluetooth-central";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "armv7 bluetooth-le";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TaksiGuvenlik/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -276,17 +309,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDevelopmentRegion = tr;
-				INFOPLIST_KEY_CFBundleDisplayName = "Taksi Güvenlik";
-				INFOPLIST_KEY_LSApplicationQueriesSchemes = tel;
-				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "HM-10 BLE modülünden gelen MATCH ve PANIC sinyallerini dinlemek için Bluetooth izni gerekiyor.";
-				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "HM-10 BLE modülü ile haberleşmek için Bluetooth izni gerekiyor.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIBackgroundModes = "bluetooth-central";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "armv7 bluetooth-le";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TaksiGuvenlik/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -307,7 +331,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 3R9ULKMUXY;
 				INFOPLIST_FILE = TaksiGuvenlik/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

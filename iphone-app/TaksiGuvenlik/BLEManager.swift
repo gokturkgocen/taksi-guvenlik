@@ -23,7 +23,8 @@ final class BLEManager: NSObject, ObservableObject {
     static let serviceUUID  = CBUUID(string: "FFE0")
     static let charUUID     = CBUUID(string: "FFE1")
     static let targetName   = "TaxiGuard"
-    static let emergencyNumber = "155"
+    // Test mode: gerçek 155 yerine kullanıcının cep numarası, demo'da 155 yap.
+    static let emergencyNumber = "05435207315"
 
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?

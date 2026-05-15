@@ -1,16 +1,15 @@
 import SwiftUI
 
-/// Single-screen UI for the minimal taxi-safety client.
-/// - top: BLE connection badge + last heartbeat
-/// - middle: large status card (color + label driven by AppState.currentState)
-/// - bottom: scrollable event log (newest first)
-struct ContentView: View {
+/// Live scan view — the original single-screen UI, rehoused inside a tab.
+/// Big colored state card driven by AppState.currentState, scrollable
+/// event log underneath. MATCH / PANIC still triggers the auto-dialer
+/// from BLEManager; this view is just the visualisation.
+struct ScanView: View {
     @Environment(AppState.self) private var state
-    @ObservedObject var ble: BLEManager
 
     var body: some View {
         ZStack {
-            backgroundColor.ignoresSafeArea()
+            AppTheme.background.ignoresSafeArea()
             VStack(spacing: 16) {
                 header
                 statusCard
@@ -18,22 +17,21 @@ struct ContentView: View {
             }
             .padding(20)
         }
-        .preferredColorScheme(.dark)
     }
 
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Taksi Güvenlik")
+                Text("Canlı Tarama")
                     .font(.title2.bold())
                     .foregroundStyle(.white)
                 Text(state.bleConnected ? "BLE bağlı" : "BLE bağlantı arıyor…")
                     .font(.caption)
-                    .foregroundStyle(state.bleConnected ? Color.green : Color.orange)
+                    .foregroundStyle(state.bleConnected ? AppTheme.success : AppTheme.warning)
             }
             Spacer()
             Circle()
-                .fill(state.bleConnected ? Color.green : Color.red)
+                .fill(state.bleConnected ? AppTheme.success : AppTheme.danger)
                 .frame(width: 14, height: 14)
         }
     }
@@ -41,9 +39,9 @@ struct ContentView: View {
     private var statusCard: some View {
         VStack(spacing: 8) {
             Text(state.currentState)
-                .font(.system(size: 56, weight: .heavy, design: .rounded))
+                .font(.system(size: 52, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
-                .padding(.top, 32)
+                .padding(.top, 28)
             statusSubtitle
             Spacer()
             if let hb = state.lastHeartbeat {
@@ -54,7 +52,7 @@ struct ContentView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 280)
+        .frame(height: 260)
         .background(statusColor)
         .clipShape(RoundedRectangle(cornerRadius: 24))
     }
@@ -66,12 +64,12 @@ struct ContentView: View {
             VStack(spacing: 4) {
                 Text("\(state.matchName)  ·  benzerlik %\(Int(state.matchSimilarity * 100))")
                     .font(.title3.bold())
-                Text("155 çağrı ekranı açıldı")
+                Text("Acil çağrı ekranı açıldı")
                     .font(.subheadline)
             }
             .foregroundStyle(.white)
         case "PANIC":
-            Text("Panik sinyali — 155 aranıyor")
+            Text("Panik sinyali — arama başlatıldı")
                 .font(.title3.bold())
                 .foregroundStyle(.white)
         case "SCANNING":
@@ -101,7 +99,7 @@ struct ContentView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
                     if state.eventLog.isEmpty {
-                        Text("Henüz olay yok. STM32 üzerindeki TARA butonuna bas.")
+                        Text("Henüz olay yok. Sürücü panelindeki TARA butonuna bas.")
                             .font(.footnote)
                             .foregroundStyle(.white.opacity(0.55))
                             .padding(.vertical, 12)
@@ -122,19 +120,17 @@ struct ContentView: View {
                 .padding(12)
             }
             .frame(maxWidth: .infinity)
-            .background(Color.white.opacity(0.05))
+            .background(AppTheme.card)
             .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
-    private var backgroundColor: Color { Color(red: 0.04, green: 0.08, blue: 0.16) }
-
     private var statusColor: Color {
         switch state.currentState {
-        case "MATCH", "PANIC":   return Color.red.opacity(0.85)
-        case "SCANNING":         return Color.orange.opacity(0.85)
-        case "NOMATCH":          return Color.green.opacity(0.75)
-        case "NETERR":           return Color.yellow.opacity(0.75)
+        case "MATCH", "PANIC":   return AppTheme.danger.opacity(0.85)
+        case "SCANNING":         return AppTheme.accent.opacity(0.85)
+        case "NOMATCH":          return AppTheme.success.opacity(0.75)
+        case "NETERR":           return AppTheme.warning.opacity(0.75)
         default:                 return Color.white.opacity(0.10)
         }
     }

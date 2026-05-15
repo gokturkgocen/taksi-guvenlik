@@ -14,7 +14,7 @@ RUN python -c "from insightface.app import FaceAnalysis; \
     app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']); \
     app.prepare(ctx_id=-1, det_size=(640,640))"
 
-COPY app.py recognition.py db.py enroll.py ./
+COPY app.py recognition.py db.py enroll.py auth.py ./
 
 ENV PORT=8000 \
     DB_PATH=/app/data/embeddings.pkl

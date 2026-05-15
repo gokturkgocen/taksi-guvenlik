@@ -32,10 +32,12 @@ from threading import Lock
 import numpy as np
 from flask import Flask, jsonify, request
 
+from auth import auth_bp
 from db import FaceDB
 from recognition import Recognizer
 
 app = Flask(__name__)
+app.register_blueprint(auth_bp)
 
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "embeddings.pkl"))
 THRESHOLD = float(os.environ.get("MATCH_THRESHOLD", "0.4"))

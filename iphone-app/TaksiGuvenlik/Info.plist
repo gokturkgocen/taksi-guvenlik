@@ -22,8 +22,8 @@
     <string>1</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
-    <key>UILaunchStoryboardName</key>
-    <string>LaunchScreen</string>
+    <key>UILaunchScreen</key>
+    <dict/>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
@@ -38,19 +38,22 @@
         <string>bluetooth-central</string>
     </array>
 
-    <!-- Bluetooth izni - HM-10 BLE modülüne bağlanmak için -->
     <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>HM-10 BLE modülünden gelen MATCH ve PANIC sinyallerini dinlemek için Bluetooth izni gerekiyor. Sistem aranan bir kişiyi tespit ettiğinde sürücüye anlık uyarı gönderir.</string>
+    <string>ESP32-CAM modülünden gelen tarama, eşleşme ve panik sinyallerini almak için Bluetooth izni gerekli.</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
-    <string>HM-10 BLE modülü ile haberleşmek için Bluetooth izni gerekiyor.</string>
+    <string>ESP32-CAM ile haberleşmek için Bluetooth izni gerekli.</string>
 
-    <!-- Telefon arama - Acil çağrı için tel:// URL açar -->
-    <!-- iOS sadece kullanıcı tıkladığında dialer açar, programatik tam arama yapamaz -->
-
-    <!-- iletişim - tel: scheme açabilmek için -->
     <key>LSApplicationQueriesSchemes</key>
     <array>
         <string>tel</string>
     </array>
+
+    <!-- Demo sunucusu plain HTTP (18.192.45.175:8000). Demo süresince ATS
+         exception veriyoruz; tezde TLS'e geçince kaldırılacak. -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
 </dict>
 </plist>

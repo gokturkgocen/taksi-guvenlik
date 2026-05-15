@@ -15,17 +15,8 @@ settings:
     SUPPORTS_MACCATALYST: NO
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: ""                  # Xcode UI'dan eklenecek
-    GENERATE_INFOPLIST_FILE: YES
-    INFOPLIST_KEY_UILaunchScreen_Generation: YES
-    INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-    INFOPLIST_KEY_UIRequiredDeviceCapabilities: "armv7 bluetooth-le"
-    INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
-    INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "HM-10 BLE modülünden gelen MATCH ve PANIC sinyallerini dinlemek için Bluetooth izni gerekiyor."
-    INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription: "HM-10 BLE modülü ile haberleşmek için Bluetooth izni gerekiyor."
-    INFOPLIST_KEY_LSApplicationQueriesSchemes: "tel"
-    INFOPLIST_KEY_UIBackgroundModes: "bluetooth-central"
-    INFOPLIST_KEY_CFBundleDisplayName: "Taksi Güvenlik"
-    INFOPLIST_KEY_CFBundleDevelopmentRegion: "tr"
+    GENERATE_INFOPLIST_FILE: NO
+    INFOPLIST_FILE: TaksiGuvenlik/Info.plist
 
 targets:
   TaksiGuvenlik:
@@ -33,8 +24,6 @@ targets:
     platform: iOS
     sources:
       - path: TaksiGuvenlik
-        excludes:
-          - "Info.plist"   # auto-generate kullanıyoruz
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.gokturk.taksiguvenlik
