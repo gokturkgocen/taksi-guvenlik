@@ -12,13 +12,17 @@ kare için kalite filtresi uygular, geçerli gömme vektörlerinin
 centroidini hesaplar ve aranan kişi veri tabanı ile kosinüs benzerliği
 ölçer. Sonuç, UART üzerinden STM32 NUCLEO-F767ZI tabanlı olay
 yöneticisine iletilir; STM32 LED ve buzzer ile sürücüye geri bildirim
-verir ve HM-10 BLE modülü üzerinden eşli Android telefona iletir.
-Telefondaki uygulama, BLE bildirimini alarak otomatik biçimde
-\textbf{155 Polis İmdat} hattını arar. Tasarım modülerdir; donanım yan~ürünü
-olarak elde edilen yerel ön~işleme, bulut tanıma ve BLE tetikleme
-katmanları birbirinden bağımsız geliştirilebilir niteliktedir. Çalışma,
-düşük maliyetli (donanım eki $<$~500~TL), KVKK uyumlu ve filo araçlarına
-genişletilebilir bir referans mimari sunmaktadır.
+verir, telefon yönlü mesajları ise yine USART üzerinden ESP32-CAM'e
+geri yollar. ESP32-CAM, entegre Bluetooth Düşük Enerji (BLE) çevresel
+arayüzü ile aynı satırları sürücünün iPhone'unda çalışan SwiftUI
+uygulamasına iletir; uygulama eşleşme veya panik olayında ulusal acil
+çağrı hattının (\textbf{155}) iOS dialer ekranını otomatik olarak açar
+ve sürücü tek dokunuşla aramayı tamamlar. Uygulama, SQLite tabanlı bir
+kullanıcı kaydı (kullanıcı adı, şifre, taksi plakası) ile sürücüyü
+sisteme bağlar. Tasarım modülerdir; ön~işleme, bulut tanıma ve BLE
+tetikleme katmanları birbirinden bağımsız geliştirilebilir niteliktedir.
+Çalışma, düşük maliyetli (donanım eki $<$~500~TL), KVKK uyumlu ve filo
+araçlarına genişletilebilir bir referans mimari sunmaktadır.
 
 \noindent\textbf{Anahtar Kelimeler:} yüz tanıma, ArcFace, gömülü sistem,
 ESP32-CAM, STM32, BLE, IoT güvenlik, taksi güvenliği, çoklu-kare
@@ -39,14 +43,18 @@ library (buffalo\_l, ArcFace-R100) and hosted on AWS EC2, applies a
 per-frame quality gate, computes the centroid of valid embeddings, and
 performs cosine similarity matching against a wanted-suspect database.
 The result is delivered over UART to an STM32 NUCLEO-F767ZI based event
-manager that drives the driver-facing LEDs and buzzer and forwards the
-event to a paired Android phone over an HM-10 Bluetooth Low Energy link.
-The Android application listens for BLE notifications and automatically
-dials the national emergency number \textbf{155}. The architecture is
-modular: on-device pre-processing, cloud-side recognition and BLE-driven
-actuation can be developed independently. The result is a low-cost
-(under \euro\,15 in extra hardware), GDPR-aware, fleet-extensible
-reference architecture.
+manager that drives the driver-facing LEDs and buzzer and sends the
+event back to the ESP32-CAM, whose integrated Bluetooth Low Energy stack
+acts as a BLE peripheral. A SwiftUI application on the driver's iPhone
+connects to this peripheral as a CoreBluetooth central and, upon a
+positive match or panic signal, opens the iOS dialer pre-loaded with
+the national emergency number (\textbf{155}); the driver completes the
+call with a single tap. Drivers register with the system through a
+SQLite-backed username/password/license-plate flow on the same server.
+The architecture is modular: on-device pre-processing, cloud-side
+recognition, BLE-driven actuation, and user management can be developed
+independently. The result is a low-cost (under \euro\,15 in extra
+hardware), GDPR-aware, fleet-extensible reference architecture.
 
 \noindent\textbf{Keywords:} face recognition, ArcFace, embedded systems,
 ESP32-CAM, STM32, BLE, IoT security, taxi safety, multi-frame aggregation,

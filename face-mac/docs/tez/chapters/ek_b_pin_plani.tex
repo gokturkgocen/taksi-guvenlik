@@ -5,48 +5,67 @@
 
 \begin{table}[h!]
 \centering
-\caption{STM32 NUCLEO-F767ZI çevre birim ve GPIO tahsisleri (Plan B).}
+\caption{STM32 NUCLEO-F767ZI çevre birim ve GPIO tahsisleri (Plan B v2).}
 \label{tab:pin-tahsisi}
 \small
 \begin{tabular}{l l l l}
 \toprule
 \textbf{İşlev} & \textbf{Pin} & \textbf{Bağlantı} & \textbf{Not}\\
 \midrule
-\multicolumn{4}{l}{\emph{UART1 --- ESP32-CAM iletişimi (115200 bps 8N1)}}\\
-TX & PA9  & ESP32-CAM RX (IO14) & UART komutu (CAPTURE)\\
-RX & PA10 & ESP32-CAM TX (IO13) & RESULT satırı\\
+\multicolumn{4}{l}{\emph{USART6 --- ESP32-CAM iletişimi (115200 bps 8N1)}}\\
+TX & PG14 (D1, Arduino başlık)  & ESP32-CAM RX (IO14) & Komut + telefon-yönlü mesaj\\
+RX & PG9  (D0, Arduino başlık)  & ESP32-CAM TX (IO13) & RESULT/ERR/HB satırı\\
 \midrule
-\multicolumn{4}{l}{\emph{UART2 --- HM-10 BLE iletişimi (9600 bps 8N1)}}\\
-TX & PD5 & HM-10 RXD & Mesaj çerçeveleri telefona\\
-RX & PD6 & HM-10 TXD & (Şu an kullanılmıyor)\\
+\multicolumn{4}{l}{\emph{USART3 --- ST-LINK VCP debug (115200 bps 8N1)}}\\
+TX & PD8 & ST-LINK (Mac terminal)       & \texttt{printf} retarget\\
+RX & PD9 & (Kullanılmıyor)               & ---\\
 \midrule
 \multicolumn{4}{l}{\emph{Buton girişleri (EXTI)}}\\
 TARA  & PC13 & B1 USER (kart üstü mavi buton)        & EXTI13, pull-up\\
-PANİK & PA0  & Harici buton, breadboard üzerinde     & EXTI0, pull-up\\
+PANİK & PA0  & Harici buton (sergi düzeneğinde takılı değil) & EXTI0, pull-up\\
 \midrule
 \multicolumn{4}{l}{\emph{GPIO çıkışları (push-pull)}}\\
-Yeşil LED   & PB0  & Harici LED + 220\,$\Omega$       & IDLE göstergesi\\
-Sarı LED    & PD12 & Harici LED + 220\,$\Omega$       & SCANNING / NETERR\\
-Kırmızı LED & PB14 & Harici LED + 220\,$\Omega$       & MATCH / PANIC\\
-Buzzer      & PD13 & Aktif buzzer (5V, sürücü transistor) & MATCH / PANIC\\
+LD1 yeşil   & PB0  & NUCLEO onboard            & IDLE / NOMATCH göstergesi\\
+LD2 mavi    & PB7  & NUCLEO onboard            & Heartbeat (\~1 Hz) + NETERR blink\\
+LD3 kırmızı & PB14 & NUCLEO onboard            & MATCH / PANIC\\
+Buzzer      & PD14 & Aktif buzzer 5\,V (transistor sürücülü) & MATCH / PANIC\\
 \midrule
-\multicolumn{4}{l}{\emph{Kapalı çevre birimleri}}\\
-ETH      & --- & (Disable)        & DCMI pin çakışması; Plan B'de DCMI N/A\\
+\multicolumn{4}{l}{\emph{Kapalı / kullanılmayan çevre birimleri}}\\
+ETH      & --- & (Disable)        & DCMI pin çakışması; Plan~B'de DCMI N/A\\
 DCMI     & --- & (Disable)        & Kamera ESP32-CAM tarafında\\
+USART1   & PA9/PA10 & (Boş)       & Morpho başlığı, kullanılmıyor\\
+USART2   & PD5/PD6  & (Boş)       & HM-10 atıldığı için kullanılmıyor\\
 \bottomrule
 \end{tabular}
 \end{table}
 
+\section{Saat Üretimi}
+
+Kart üzerindeki HSE 8~MHz osilatörü tercih edilmemiş; CubeMX'in ürettiği
+\texttt{stm32f7xx\_hal\_conf.h} dosyasında \texttt{HSE\_VALUE} makrosu
+25~MHz olarak tanımlandığı için (NUCLEO-F767ZI için yanlış varsayılan;
+\cite{stm32f767_rm}) HSE üzerinden PLL yapıldığında HAL'in UART BRR
+hesabı sapıyor, baud hızı yaklaşık 1/3 oranında bozuluyordu. Onun yerine dahili HSI 16~MHz
+osilatörü PLL girişine bağlanır; PLL\_M=8, PLL\_N=216, PLL\_P=2,
+PLL\_Q=9 yapılandırmasıyla SYSCLK $=$ HCLK $=$ 216~MHz elde edilir.
+APB1 = 54~MHz, APB2 = 108~MHz, USART zaman tabanı APB2'den alınır ve
+115200~bps baud hatasız üretilir.
+
 \section{Güç ve Topraklama}
 
 \begin{itemize}[itemsep=1pt]
-    \item STM32 NUCLEO kartı USB üzerinden (ST-Link ya da USB User) beslenir.
-    \item ESP32-CAM 5\,V Vin üzerinden beslenir; 3.3\,V regülatörü modülde
-          dahilidir.
-    \item HM-10 modülü 3.3\,V besleme alır (STM32'nin 3V3 pininden).
-    \item Tüm topraklar ortak (GND) bara üzerinden bağlanır.
-    \item ESP32-CAM tarafında flash sırasında IO0 GND'ye çekilir; sonrasında
-          serbest bırakılır.
+    \item STM32 NUCLEO kartı USB üzerinden (ST-Link konektörü) beslenir.
+    \item ESP32-CAM \textbf{ayrı bir USB kaynağından} (kendi dock'undan
+          veya bağımsız bir USB şarjdan) beslenir. STM32 kartının 5~V
+          pininden besleme \emph{brown-out reset}'ine yol açar; kamera +
+          Wi-Fi + BLE eşzamanlı çalışırken pik akım yaklaşık 500~mA'dır.
+    \item Tek bir kablo bağlantısı yeterli midir? Hayır: STM32 ile ESP-CAM
+          arasında en az üç hat olmalıdır --- USART6 TX, USART6 RX ve
+          ortak GND. GND referansı paylaşılmadan UART sinyalleri rastgele
+          görünür.
+    \item ESP32-CAM tarafında flash sırasında IO0 GND'ye çekilir
+          (dock üstündeki düğme aynı işi yapar); sonrasında serbest
+          bırakılır.
 \end{itemize}
 
 \section{Bring-up Sırası}
@@ -64,15 +83,14 @@ sonraki satıra geçilir.
 \toprule
 \textbf{Adım} & \textbf{İşlem} & \textbf{Başarı Kriteri}\\
 \midrule
-1 & Harici LED'leri ve buzzer'ı breadboard'a kur, STM'e bağla & TARA basınca SARI yanar, PANİK basınca KIRMIZI + buzzer\\
-2 & STM UART1 TX'i USB-TTL ile dinle (115200) & \texttt{CAPTURE} satırı UART'ta görünür\\
-3 & STM UART2'yi USB-TTL ile dinle (9600) & \texttt{SCANNING/MATCH/PANIC} satırları görünür\\
-4 & ESP32-CAM'i USB-TTL ile flash et, Wi-Fi'a bağlanışını izle & Seri çıktıda IP adresi görünür\\
-5 & ESP32-CAM'i \texttt{far\_frr.py} ile test et & EC2 health OK + tek probe MATCH/NOMATCH cevabı\\
-6 & STM ve ESP32-CAM'i aynı güç hattında birlikte ayağa kaldır, UART1 bağla & STM TARA $\rightarrow$ ESP burst $\rightarrow$ STM RESULT\\
-7 & HM-10'u STM UART2'ye bağla & Telefonun nRF Connect'inde \texttt{SCANNING/HB} satırları görünür\\
-8 & TaxiGuard Android uygulamasını yükle, BLE central başlat & MATCH frame'inde otomatik 155 araması başlar\\
-9 & Test seti ile FAR/FRR ölçümü yap & ROC eğrisi + EER raporu üretildi\\
+1 & STM32'yi CubeIDE'den flash et, USART3 VCP'yi Mac terminal'inde aç (115200) & Boot mesajı + LD2 1~Hz heartbeat + B1 USER basınca SCANNING satırı\\
+2 & STM32 USART6 TX'i (D1, PG14) bir USB-TTL ile dinle (115200) & B1 USER basıldığında \texttt{CAPTURE\textbackslash n} ve \texttt{SCANNING\textbackslash n} satırları görünür\\
+3 & ESP32-CAM'i dock üzerinde flash et (PlatformIO), kendi dock USB'sinden besle & Seri çıktıda Wi-Fi STA IP'si + ``BLE advertising as TaxiGuard'' mesajı\\
+4 & ESP32-CAM'i \texttt{eval/far\_frr.py} ile bağımsız test et & EC2 \texttt{/health} 200, sahte burst için MATCH/NOMATCH cevabı\\
+5 & STM32 \texttt{D0/D1/GND} pinlerini ESP32-CAM \texttt{IO13/IO14/GND} pinlerine bağla, iki kart farklı USB güçlerinden çalışsın & B1 USER $\rightarrow$ STM \texttt{CAPTURE} $\rightarrow$ ESP burst $\rightarrow$ STM \texttt{RESULT:...} parse\\
+6 & iPhone'da TaksiGuvenlik uygulamasını Xcode ile build et, çalıştır & İlk açılışta Login ekranı; kayıt sonrası \texttt{TaxiGuard}'a otomatik bağlantı\\
+7 & B1 USER bas, iPhone'da Scan sekmesini izle & Sırasıyla SCANNING $\rightarrow$ MATCH (veya NOMATCH) durum kartı, MATCH'te \texttt{tel://}<numara> dialer'ı açılır\\
+8 & Test seti ile FAR/FRR ölçümü yap (\Cref{ch:sonuclar}) & ROC eğrisi + EER raporu üretildi\\
 \bottomrule
 \end{tabularx}
 \end{table}

@@ -67,6 +67,7 @@
         \item Literatür ve tasarım kararları
         \item Sistem mimarisi
         \item Donanım ve yazılım gerçeklemesi
+        \item Sürücü uygulaması (iPhone) + kullanıcı yönetimi
         \item Ölçüm planı ve sonuçlar
         \item Sonuç ve gelecek çalışmalar
     \end{enumerate}
@@ -100,7 +101,7 @@
             \item Uçtan uca tanıma gecikmesi: $\leq$ 7~s (10-frame burst)
             \item Eşit Hata Oranı (EER): $\leq$ \%5
             \item Aydınlatma: 100--600~lx · Mesafe: 30--120~cm
-            \item Acil çağrı tetikleme süresi: $\leq$ 3~s
+            \item Acil çağrı dialer'ının açılma süresi: $\leq$ 3~s
             \item Ek donanım maliyeti: $\leq$ 500~TL
         \end{itemize}
     \end{block}
@@ -164,18 +165,18 @@
             \end{itemize}
         \end{block}
     \column{0.5\textwidth}
-        \begin{block}{BLE + Telefon (seçildi)}
+        \begin{block}{ESP32-CAM BLE + Telefon (seçildi)}
             \begin{itemize}
                 \item Sürücünün telefonu zaten orada
-                \item HM-10 \euro 3 modülü
-                \item Android \texttt{Intent.ACTION\_CALL}
+                \item Ek BLE modülü gerek yok
+                \item iPhone: \texttt{tel://}<numara> dialer
             \end{itemize}
         \end{block}
     \end{columns}
 
     \vspace{0.4cm}
-    iOS yerine Android: \texttt{ACTION\_CALL}'a izin verir; iOS sandbox
-    kullanıcı dokunması ister.
+    iOS sandbox tam-otomatik aramaya izin vermez; dialer'a tek tık
+    onayı \alert{yanlış pozitif arama koruması} olarak savunuluyor.
 \end{frame}
 
 % =========================================================================
@@ -187,46 +188,48 @@
     \begin{center}
     \begin{tikzpicture}[
         node distance=8mm and 14mm,
-        box/.style={draw=ink, thick, minimum width=24mm, minimum height=10mm,
+        box/.style={draw=ink, thick, minimum width=26mm, minimum height=10mm,
                     align=center, font=\scriptsize\sffamily},
-        cloud/.style={draw=ink, thick, minimum width=30mm, minimum height=10mm,
+        cloud/.style={draw=ink, thick, minimum width=32mm, minimum height=10mm,
                       align=center, font=\scriptsize\sffamily, fill=ink!5},
         arr/.style={-{Latex[length=2mm]}, thick, ink},
         arracc/.style={-{Latex[length=2mm]}, thick, accent},
         arrsig/.style={-{Latex[length=2mm]}, thick, signal},
         lab/.style={font=\tiny\ttfamily, ink},
     ]
-    \node[box] (esp) {ESP32-CAM\\\tiny 10-frame burst};
+    \node[box] (esp) {ESP32-CAM\\\tiny burst + Wi-Fi + BLE};
     \node[box, below=of esp] (stm) {STM32 F767ZI\\\tiny olay yöneticisi};
     \node[box, right=of esp] (wifi) {Wi-Fi};
-    \node[cloud, right=of wifi] (ec2) {AWS EC2\\\tiny Flask + InsightFace};
-    \node[box, below=of ec2] (phone) {Android\\\tiny 155 dial};
-    \node[box, left=of phone] (hm10) {HM-10 BLE};
+    \node[cloud, right=of wifi] (ec2) {AWS EC2\\\tiny Flask + InsightFace + Auth};
+    \node[box, below=of ec2] (phone) {iPhone\\\tiny SwiftUI · tel:// dialer};
 
     \draw[arr] (esp.east) -- node[lab, above]{HTTP POST} (wifi.west);
     \draw[arr] (wifi.east) -- (ec2.west);
     \draw[arracc] (ec2.west) to[bend left=30] node[lab, below]{JSON} (wifi.east);
-    \draw[arr] (esp) -- node[lab, right]{UART1} (stm);
-    \draw[arr] (stm.east) -- node[lab, above]{UART2} (hm10.west);
-    \draw[arr] (hm10.east) -- node[lab, above]{BLE} (phone.west);
-    \draw[arrsig] (phone.south) -- ++(0,-7mm) node[lab, right]{GSM · 155};
+    \draw[arr] (esp) -- node[lab, right]{USART6} (stm);
+    \draw[arr] (esp.south east) to[bend left=20]
+        node[lab, right]{BLE FFE0/FFE1} (phone.north);
+    \draw[arracc] (phone.north west) to[bend left=20]
+        node[lab, left]{/auth} (ec2.south west);
+    \draw[arrsig] (phone.south) -- ++(0,-6mm) node[lab, right]{tel:// 155};
     \end{tikzpicture}
     \end{center}
 
-    Üç bölge: Araç içi · Bulut tanıma · Acil çağrı
+    Üç bölge: Araç içi · Bulut tanıma + auth · Sürücü telefonu
 \end{frame}
 
 \begin{frame}{Veri Akışı --- 10-Frame Burst}
     \begin{enumerate}
-        \item \textbf{TARA} basıldı $\rightarrow$ STM SARI LED + HM-10 \texttt{SCANNING}
-        \item STM $\rightarrow$ ESP \texttt{CAPTURE} (UART1)
-        \item ESP-CAM 5 FPS × 2 s = 10 JPEG yakalar, hepsi EC2'ye HTTP POST
+        \item \textbf{TARA} (B1 USER) basıldı $\rightarrow$ STM SCANNING
+        \item STM $\rightarrow$ ESP \texttt{CAPTURE} (USART6)
+        \item ESP-CAM 5 FPS × 2 s = 10 JPEG yakalar, EC2'ye HTTP POST
         \item Server her frame'de \textbf{kalite filtresi} (blur, yaw, alan, det)
         \item Geçerli embedding'lerin \textbf{centroid}'i $\rightarrow$
               cosine sim $\geq$ 0.40 $\rightarrow$ MATCH
-        \item ESP $\rightarrow$ STM \texttt{1;name;sim} CSV
-        \item STM $\rightarrow$ HM-10 $\rightarrow$ Android \texttt{MATCH:..}
-        \item Android: \texttt{Intent.ACTION\_CALL("tel:155")}
+        \item ESP $\rightarrow$ STM \texttt{RESULT:1;name;sim}
+        \item STM $\rightarrow$ ESP $\rightarrow$ BLE notify $\rightarrow$ iPhone \texttt{MATCH:..}
+        \item iPhone: \texttt{tel://}<numara> dialer ekranı açılır,
+              sürücü tek dokunuşla aramayı tamamlar.
     \end{enumerate}
 
     \vspace{0.3cm}
@@ -244,30 +247,33 @@
     \toprule
     \textbf{Parça} & \textbf{Adet} & \textbf{Fiyat}\\
     \midrule
-    STM32 NUCLEO-F767ZI         & 1 & (Mevcut)\\
-    ESP32-CAM (AI-Thinker, OV3660) & 1 & 120 TL\\
-    HM-10 BLE                   & 1 & 80 TL\\
-    LED + buzzer + buton + breadboard & --- & $\sim$135 TL\\
-    USB-TTL, jumper, headers    & --- & 60 TL\\
+    STM32 NUCLEO-F767ZI                & 1 & (Mevcut)\\
+    ESP32-CAM (AI-Thinker, OV3660)     & 1 & 120 TL\\
+    ESP32-CAM-MB programlama dock'u    & 1 & 80 TL\\
+    Aktif buzzer 5\,V                  & 1 & 15 TL\\
+    Push button (PANİK, opsiyonel)     & 1 & 5 TL\\
+    Jumper + breadboard                & --- & 60 TL\\
     \midrule
-    \textbf{Toplam ek donanım}  &   & \textbf{$\approx$ 395 TL} \\
+    \textbf{Toplam ek donanım}         &   & \textbf{$\approx$ 280 TL} \\
     \bottomrule
     \end{tabularx}
 
     \vspace{0.4cm}
-    Hedef bütçenin (500 TL) altında.
+    İlk Plan B'deki HM-10 modülü mimariden çıktı; ESP32-CAM aynı işi
+    entegre BLE ile yapıyor. Maliyet ve montaj basitleşti.
 \end{frame}
 
-\begin{frame}{Sunucu --- Flask + InsightFace}
+\begin{frame}{Sunucu --- Flask + InsightFace + Auth}
     \begin{itemize}
-        \item Python 3.11 · Flask · Gunicorn (-w 1)
+        \item Python 3.11 · Flask · Gunicorn (-w 1) · Docker
         \item AWS EC2 m7i-flex.large · Frankfurt
-        \item Tek endpoint: \texttt{POST /search}
-        \item Sergi sertleştirmeleri:
+        \item Tanıma: \texttt{POST /search}
+              (10-frame burst, X-Session-Id, JPEG)
+        \item \textbf{Kullanıcı yönetimi}: \texttt{/auth/\{register,login,me,logout\}}
             \begin{itemize}
-                \item Opsiyonel \texttt{X-Shared-Secret} auth
-                \item Yapılandırılmış JSON günlük (per-burst)
-                \item \texttt{/metrics} endpoint --- p50/p95/maks latency
+                \item SQLite (\texttt{/app/data/users.db})
+                \item werkzeug.security şifre özeti (PBKDF2 + tuz)
+                \item \texttt{secrets.token\_urlsafe(32)} bearer token
             \end{itemize}
     \end{itemize}
 
@@ -286,6 +292,9 @@
             \item Callback vtable: LED, buzzer, UART, clock
             \item 6 durum: IDLE / SCANNING / MATCH / NOMATCH / PANIC / NETERR
             \item PANIC her zaman armed
+            \item \alert{HSI $\times$ PLL $\rightarrow$ 216 MHz}
+                  (HSE\_VALUE makro hatası bypass'landı)
+            \item USART6 (Arduino D0/D1) ESP-CAM köprüsü
         \end{itemize}
     \column{0.45\textwidth}
         \begin{exampleblock}{Host-side birim test}
@@ -294,29 +303,81 @@
             Donanım üzerinde flash--flash döngüsü minimize edildi.
         \end{exampleblock}
     \end{columns}
-
-    \vspace{0.3cm}
-    Tasarım host'ta doğrulandıktan sonra \texttt{main.c} USER CODE
-    bölgesine inline edildi --- CubeMX yenilemesi ile çakışmaz.
 \end{frame}
 
-\begin{frame}{Android --- TaxiGuard v2}
+\begin{frame}{ESP32-CAM --- Kamera + Wi-Fi + BLE Çevresel}
     \begin{itemize}
-        \item Kotlin + Jetpack Compose · min SDK 26
-        \item \texttt{Hm10Service} foreground servis (BLE central)
-        \item \texttt{FrameParser}: ASCII satır $\rightarrow$ \texttt{MatchEvent}
-        \item \texttt{EmergencyDialer}: \texttt{Intent.ACTION\_CALL("tel:155")}
-        \item \alert{Dev mode}: ``Simulate MATCH'' butonu, donanım olmadan
-              tek telefonda parse + dial akışını test eder
+        \item AI-Thinker, OV3660 sensörü · ESP-WROOM-32 SoC
+        \item PlatformIO + Arduino-ESP32 firmware
+        \item Wi-Fi STA (sürücü hotspot'u) · HTTP POST → EC2 /search
+        \item BLE çevresel: \texttt{TaxiGuard}, FFE0/FFE1, MTU 247
+            \begin{itemize}
+                \item Varsayılan MTU 23, \texttt{MATCH:...} satırını 20B'da kırıyordu
+            \end{itemize}
+        \item STM yön mesajlarını (\texttt{SCANNING/MATCH:.../NOMATCH/PANIC/NETERR})
+              USART'tan alır, doğrudan BLE notify'a aktarır.
     \end{itemize}
 
     \vspace{0.3cm}
-    HM-10 elimize geldiğinde tek değişiklik: BLE scanner gerçek modülü
-    bulup bağlanacak. Diğer her şey aynı.
+    \begin{alertblock}{Güç notu}
+        Kamera + Wi-Fi + BLE eşzamanlı, $\sim$500 mA pik. STM 5V pininden
+        besleme \emph{brown-out}'a yol açar; ayrı USB kaynak şart.
+    \end{alertblock}
 \end{frame}
 
 % =========================================================================
-% Bölüm 5 — ÖLÇÜM ve SONUÇLAR
+% Bölüm 5 — iPHONE UYGULAMASI + AUTH
+% =========================================================================
+\section{Sürücü Uygulaması}
+
+\begin{frame}{iPhone --- TaksiGuvenlik}
+    Swift 5.9 + SwiftUI + \texttt{@Observable}, iOS 17+
+    \begin{itemize}
+        \item \textbf{AuthManager}: \texttt{/auth} REST + Keychain token
+        \item \textbf{BLEManager}: CoreBluetooth central, \texttt{TaxiGuard}'a otomatik bağlan
+        \item \textbf{RootView}: auth durumuna göre Login / Register / Home (TabView)
+        \item \textbf{TabView}:
+            \begin{itemize}
+                \item Ana Sayfa --- selamlama + plaka + sistem durumu
+                \item Tarama --- canlı state + olay günlüğü
+                \item Profil --- kullanıcı bilgisi + Çıkış Yap
+            \end{itemize}
+        \item MATCH/PANIC $\rightarrow$ \texttt{UIApplication.shared.open("tel://\dots")}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Kullanıcı Yönetimi Akışı}
+    \begin{center}
+    \begin{tikzpicture}[
+        node distance=6mm and 12mm,
+        box/.style={draw=ink, thick, minimum width=24mm, minimum height=8mm,
+                    align=center, font=\scriptsize\sffamily},
+        arr/.style={-{Latex[length=2mm]}, thick, ink, font=\tiny\ttfamily},
+    ]
+    \node[box] (open) {Uygulama açılır};
+    \node[box, right=of open] (boot) {Keychain'de\\token var mı?};
+    \node[box, above right=2mm and 10mm of boot] (verify) {\texttt{/auth/me}};
+    \node[box, below right=2mm and 10mm of boot] (login) {Login};
+    \node[box, right=of verify] (home) {HomeView\\(TabView)};
+    \node[box, right=of login] (reg) {Register\\(otomatik login)};
+
+    \draw[arr] (open) -- (boot);
+    \draw[arr] (boot.north east) -- node[above]{evet} (verify.west);
+    \draw[arr] (boot.south east) -- node[below]{hayır} (login.west);
+    \draw[arr] (verify) -- node[above]{200} (home);
+    \draw[arr] (verify.south) to[bend left=25] node[right]{401} (login.north);
+    \draw[arr] (login.east) -- (reg.west);
+    \draw[arr] (reg.north) to[bend right=20] node[above]{201} (home.south);
+    \end{tikzpicture}
+    \end{center}
+
+    \vspace{0.2cm}
+    Plaka regex \texttt{34 ABC 1234} formatında doğrulanır; kayıt başarılı
+    olduğunda otomatik login + ana ekran.
+\end{frame}
+
+% =========================================================================
+% Bölüm 6 — ÖLÇÜM ve SONUÇLAR
 % =========================================================================
 \section{Ölçüm ve Sonuçlar}
 
@@ -349,28 +410,29 @@
     Sergi takvimi içinde uygulanabilir kapsam.
 \end{frame}
 
-\begin{frame}{Mevcut Durum (Sergi Öncesi)}
+\begin{frame}{Mevcut Durum}
     \small
     \begin{tabular}{l l}
     \toprule
     \textbf{Aşama} & \textbf{Durum}\\
     \midrule
-    EC2 sunucu                             & \alert{Canlı, smoke OK}\\
-    ESP32-CAM Wi-Fi + HTTP POST + JSON     & \alert{Test edildi}\\
-    HM-10 BLE (telefon + nRF Connect)      & \alert{Test edildi}\\
-    STM32 build + flash + onboard LED      & \alert{Test edildi}\\
-    STM32 state machine (host-side)        & \alert{12/12 test geçti}\\
-    Android dev-mode 155 dial              & \alert{Test edildi}\\
+    EC2 sunucu (\texttt{/search} + \texttt{/auth})  & \alert{Canlı, smoke OK}\\
+    ESP32-CAM Wi-Fi + HTTP POST + JSON              & \alert{Test edildi}\\
+    ESP32-CAM BLE \texttt{TaxiGuard} advertising    & \alert{Test edildi}\\
+    STM32 HSI$\times$PLL 216 MHz + USART6           & \alert{Test edildi}\\
+    STM32 state machine (host-side)                 & \alert{12/12 test geçti}\\
+    STM $\leftrightarrow$ ESP UART köprüsü          & \alert{Test edildi}\\
+    iPhone Login/Register + TabView + Keychain      & \alert{Yazıldı, build bekliyor}\\
+    iPhone otomatik dialer (\texttt{tel://})         & \alert{Test edildi}\\
     \hline
-    STM + ESP birlikte güç + UART köprüsü  & Sergi haftası\\
-    HM-10 STM UART2 entegrasyonu           & Sergi haftası\\
-    FAR/FRR ölçümü                         & Sergi haftası\\
+    FAR/FRR ölçümü                                  & Sergi haftası\\
+    \texttt{emergencyNumber} 155'e geri çekme       & Demo öncesi\\
     \bottomrule
     \end{tabular}
 \end{frame}
 
 % =========================================================================
-% Bölüm 6 — SONUÇ
+% Bölüm 7 — SONUÇ
 % =========================================================================
 \section{Sonuç}
 
@@ -378,20 +440,26 @@
     \begin{itemize}
         \item Açık kaynak InsightFace + ESP32-CAM ile düşük maliyetli
               taksi senaryosu entegrasyonu
-        \item Telefon BLE ağ geçidi $\rightarrow$ GSM modülü gerektirmeden 155 çağrısı
+        \item ESP32-CAM'in entegre BLE çevresel arayüzü ile tek board
+              üzerinde kamera + Wi-Fi + BLE; ek modül (HM-10) gereksiz
         \item Cross-frame $\sigma$ ile ek model olmadan pasif canlılık
         \item HAL'dan soyutlanmış, host-side test edilebilen taşınabilir
               STM32 durum makinesi
+        \item SQLite + werkzeug + secrets ile ek bağımlılık gerektirmeyen
+              hafif kullanıcı kaydı altyapısı
         \item Otomatik FAR/FRR ölçüm aracı $\rightarrow$ tekrarlanabilir tablolar
     \end{itemize}
 \end{frame}
 
 \begin{frame}{Gelecek Çalışmalar}
     \begin{enumerate}
-        \item \textbf{Faz 2}: Caddy + Let's Encrypt $\rightarrow$ HTTPS; \texttt{SHARED\_SECRET}
-              aktif (~1/2 gün iş)
+        \item \textbf{Faz 2}: Caddy + Let's Encrypt $\rightarrow$ HTTPS;
+              \texttt{SHARED\_SECRET} aktif; token süresi (~1/2 gün iş)
+        \item \textbf{Android istemcisi}: \texttt{Intent.ACTION\_CALL}
+              ile tek-dokunuşsuz çağrı + 5\,s ``İptal'' geri sayımı
         \item \textbf{Edge inference}: ESP32-S3 üzerinde nicemlenmiş ön-eleme
-        \item \textbf{Filo entegrasyonu}: MQTT/WebSocket olay panosu
+        \item \textbf{Filo entegrasyonu}: MQTT/WebSocket olay panosu, plaka
+              eşleme paneli
         \item \textbf{Aktif canlılık}: arka koltukta sessiz kafa-jest doğrulaması
         \item \textbf{Yasal çerçeve}: KVKK açık rıza prosedürü + yetkili
               veri tabanı erişimi

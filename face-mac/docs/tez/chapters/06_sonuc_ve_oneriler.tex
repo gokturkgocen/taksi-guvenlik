@@ -6,9 +6,10 @@
 Bu tez kapsamında; taksi gibi araç içi ortamlarda sürücü güvenliğini
 artırmaya yönelik, uçtan uca çalışan bir gömülü sistem prototipi
 tasarlanmış ve gerçekleştirilmiştir. Sistem; bulut tabanlı yüz tanıma
-servisi, ESP32-CAM tabanlı kamera/ağ köprüsü, STM32 tabanlı olay
-yöneticisi, HM-10 BLE modülü ve Android tabanlı otomatik 155 çağrı
-uygulamasından oluşmaktadır. Tasarım, üç temel ilkeye sadık kalmıştır:
+servisi, kullanıcı kaydı / oturum API'si, ESP32-CAM tabanlı kamera +
+Wi-Fi + BLE köprüsü, STM32 tabanlı olay yöneticisi ve iPhone üzerinde
+SwiftUI ile yazılmış sürücü uygulamasından oluşmaktadır. Tasarım, üç
+temel ilkeye sadık kalmıştır:
 
 \begin{enumerate}[label=(\arabic*),itemsep=2pt]
     \item Sürücü etkileşiminin tek bir butona indirgenmesi,
@@ -29,23 +30,24 @@ flash--flaş döngülerinin minimuma indirilmesini sağlamıştır.
 Sergi öncesi yapılan tezgah testlerinde:
 
 \begin{itemize}[itemsep=1pt]
-    \item EC2 sunucusunun health/check ve burst smoke testleri geçmiştir;
+    \item EC2 sunucusunun health/check, burst smoke testi ve \texttt{/auth/...}
+          mutluluk yolu + hata senaryoları geçmiştir;
     \item ESP32-CAM Wi-Fi STA modunda hotspot'a bağlanıp sunucuya 10
           karelik burst gönderebilmektedir;
+    \item ESP32-CAM aynı zamanda BLE çevresel olarak \texttt{TaxiGuard}
+          adıyla yayınlanmakta, iPhone uygulaması otomatik olarak bağlanıp
+          \texttt{FFE1} karakteristiğinin notify aboneliğini açmaktadır;
     \item STM32 CubeMX projesi açılmış, build geçmiş ve kart üzerinde
-          onboard LED testleri yapılmıştır;
-    \item HM-10 modülü, telefon + nRF Connect üzerinden bağımsız olarak
-          test edilmiş ve doğru BLE GATT karakteristiği üzerinden veri
-          akışı sağlanmıştır;
-    \item Android uygulaması, ``DEV: Simulate MATCH'' butonu üzerinden,
-          donanım olmadan tek telefonda parse + 155 dial akışını başarıyla
-          tetiklemiştir.
+          HSI$\times$PLL 216~MHz saat üretimi doğrulanmıştır;
+    \item iPhone uygulaması Login/Register akışından geçirilmiş, MATCH
+          satırı geldiğinde \texttt{tel://}<numara> dialer'ı otomatik
+          olarak açılmaktadır.
 \end{itemize}
 
-Sergi haftası içinde tamamlanacak adımlar: STM ile ESP32-CAM'in birlikte
-ayağa kaldırılması, HM-10'un UART2'ye bağlanması, küçültülmüş bir test
-seti üzerinde FAR/FRR ölçümlerinin alınması ve sonuçların tezin
-\cref{ch:sonuclar}'üne işlenmesi.
+Sergi haftası içinde tamamlanacak adımlar: küçültülmüş bir test seti
+üzerinde FAR/FRR ölçümlerinin alınması, sonuçların tezin
+\cref{ch:sonuclar}'üne işlenmesi ve demo öncesi \texttt{emergencyNumber}
+değerinin 155'e geri çekilmesi.
 
 \section{Akademik ve Pratik Katkılar}
 
@@ -68,7 +70,7 @@ seti üzerinde FAR/FRR ölçümlerinin alınması ve sonuçların tezin
 
 \section{Geliştirme Önerileri}
 
-\subsection{Faz 2: HTTPS ve Kimlik Doğrulama}
+\subsection{Faz 2: HTTPS, ESP-CAM Kimlik Doğrulama ve Token Süresi}
 
 Mevcut sürüm (Faz 1) sunucusu HTTP üzerinden çalışmakta; sergi/test
 ortamı için yeterlidir ancak üretim için yetersizdir. Faz 2'ye geçiş için:
@@ -81,6 +83,11 @@ ortamı için yeterlidir ancak üretim için yetersizdir. Faz 2'ye geçiş için
     \item Sunucu tarafında \texttt{SHARED\_SECRET} aktif edilerek
           ESP32-CAM ve harness'ın \texttt{X-Shared-Secret} başlığı
           taşıması.
+    \item Kullanıcı oturum token'larına süre sınırlaması (örnek 30 gün)
+          ve yenileme akışı; mevcut sürümde tokenlar yalnızca çıkış
+          işleminde geçersizleştirilmektedir.
+    \item iPhone uygulamasında \texttt{NSAllowsArbitraryLoads} bayrağının
+          kaldırılması, ATS uyumlu HTTPS'in zorunlu kılınması.
 \end{itemize}
 
 Bu adımlar tasarım açısından hazırdır; yaklaşık yarım günlük bir geçiş
@@ -105,7 +112,21 @@ düşüş sağlar; ancak ek bir geliştirme yatırımı gerektirir.
 Birden fazla aracın merkezi panelde takibi için MQTT veya WebSocket
 tabanlı bir olay panosu eklenebilir. Sunucu zaten yapılandırılmış JSON
 günlüğü üretmektedir; bu günlüklerin bir MQTT broker'a yayınlanması
-büyük bir mimari değişiklik gerektirmemektedir.
+büyük bir mimari değişiklik gerektirmemektedir. Mevcut SQLite kullanıcı
+tablosu, her sürücüye atanmış plaka bilgisini zaten tuttuğu için
+``hangi araçta hangi şoför var'' raporu küçük bir SQL sorgusu kadar
+yakındır.
+
+\subsection{Android İstemcisi}
+\label{sec:android-gelecek}
+
+Android tarafında aynı sistem, \texttt{Intent.ACTION\_CALL("tel:155")}
+ile tek-dokunuşsuz çalışacak şekilde genişletilebilir
+\cite{android2024telephony}. Sürücü tarafında yanlış pozitif arama
+sorunu, MATCH onayı için kısa bir geri sayım (örneğin 5~s
+``İptal etmek için dokunun'') ile azaltılabilir. Bu, iOS sandbox'ı
+gibi dialer ekranı açan bir yaklaşıma kıyasla şoförün ekrana
+dokunmadan da emniyet hattı ile bağlantı kurabilmesini sağlar.
 
 \subsection{Aktif Canlılık ve Çoklu Modalite}
 

@@ -10,7 +10,11 @@ parametrelerle çalıştığı} sırasıyla verilmiştir.
 
 \Cref{tab:bom} prototipte kullanılan tüm donanım bileşenlerini ve
 yaklaşık birim maliyetlerini özetler. Toplam ek donanım maliyeti,
-hedeflenen 500~TL bütçesi içinde kalmıştır.
+hedeflenen 500~TL bütçesi içinde kalmıştır. İlk Plan~B'de yer alan
+HM-10 BLE modülü, ESP32-CAM'in entegre Bluetooth yığını tarafından
+yerinden edildiği için listede yer almaz; FT232 USB-TTL dönüştürücü
+yalnızca ESP-CAM bring-up sırasında geçici olarak kullanılmıştır,
+nihai sistemin parçası değildir.
 
 \begin{table}[h!]
 \centering
@@ -21,17 +25,16 @@ hedeflenen 500~TL bütçesi içinde kalmıştır.
 \toprule
 \textbf{Parça} & \textbf{Model / Tip} & \textbf{Adet} & \textbf{Tahmini Fiyat}\\
 \midrule
-Olay yöneticisi MCU      & STM32 NUCLEO-F767ZI      & 1 & (Mevcut, bütçeye eklenmedi)\\
-Kamera + Wi-Fi modülü    & ESP32-CAM AI-Thinker (OV3660) & 1 & 120 TL\\
-BLE köprü modülü         & HM-10 (CC2541)           & 1 & 80 TL\\
-LED                      & Yeşil 5\,mm, sarı, kırmızı + 220\,$\Omega$ direnç & 3+3 & 10 TL\\
-Buzzer                   & Aktif buzzer 5\,V        & 1 & 15 TL\\
-Buton                    & Push button taktil 6\,mm & 2 & 10 TL\\
-Breadboard + jumper      & --                       & -- & 100 TL\\
-USB-TTL dönüştürücü      & CP2102 / FT232           & 1 & 50 TL\\
-Yedek 40-pin male header & --                       & 2 & 10 TL\\
+Olay yöneticisi MCU       & STM32 NUCLEO-F767ZI               & 1 & (Mevcut, bütçeye eklenmedi)\\
+Kamera + Wi-Fi + BLE      & ESP32-CAM AI-Thinker (OV3660)     & 1 & 120 TL\\
+ESP32-CAM dock            & AI-Thinker MB programlama dock'u  & 1 & 80 TL\\
+Sürücü telefonu           & iPhone (kullanıcı sahibi)          & 1 & (Mevcut)\\
+Buzzer                    & Aktif buzzer 5\,V                  & 1 & 15 TL\\
+Buton                     & Push button taktil 6\,mm (PANİK, opsiyonel) & 1 & 5 TL\\
+LED'ler                   & NUCLEO onboard LD1/LD2/LD3 yeterli & --- & 0 TL\\
+Jumper kablo, breadboard  & ---                                & --- & 60 TL\\
 \midrule
-\textbf{Toplam ek donanım} & & & \textbf{$\approx$ 395 TL}\\
+\textbf{Toplam ek donanım} & & & \textbf{$\approx$ 280 TL}\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -41,7 +44,7 @@ Buluttaki çalışma maliyeti için AWS EC2 \texttt{m7i-flex.large}
 AWS Başlangıç Kredisi ile sergi ve test dönemi için ek maliyet
 oluşturmamıştır.
 
-\section{Sunucu Tarafı: Flask + InsightFace}
+\section{Sunucu Tarafı: Flask + InsightFace + Kimlik Doğrulama}
 \label{sec:sunucu-impl}
 
 \subsection{Yığın ve Bağımlılıklar}
@@ -54,22 +57,27 @@ Konteynerleştirme Docker ile yapılmış; Gunicorn $-w\,1$ yapılandırmasıyla
 çalıştırılmaktadır. Tek worker zorunluluğu, oturum (session) verisinin
 süreç içi (in-memory) saklanmasından kaynaklanır: birden fazla worker,
 aynı oturumun karelerini farklı süreçlere dağıtarak agregasyonu kırardı.
+Kimlik doğrulama katmanı ek bir bağımlılık gerektirmemiş; şifre özetleri
+Flask ile birlikte gelen \texttt{werkzeug.security} kitaplığı,
+oturum token'ları ise Python standart kitaplığındaki \texttt{secrets}
+modülü ile üretilmektedir.
 
 \subsection{Endpoint Tasarımı}
 
-Tek bir kritik endpoint mevcuttur: \texttt{POST /search}. İstek
+Tanıma servisinin kritik endpoint'i \texttt{POST /search}'tür. İstek
 gövdesi JPEG bayt dizisi; başlıkları:
 
 \begin{itemize}[itemsep=1pt]
     \item \texttt{X-Session-Id}: Oturum kimliği (UUID), tüm burst boyunca aynı.
     \item \texttt{X-Frame-Index}: 1\textendash N arası kare sırası.
     \item \texttt{X-Frame-Total}: Burst içindeki toplam kare sayısı (\=10).
-    \item \texttt{X-Shared-Secret}: (Opsiyonel) İlk faz için kapalı bir
-          anahtar; üretimde set edildiğinde \texttt{X-Shared-Secret}'i
-          taşımayan istekler 401 ile reddedilir.
+    \item \texttt{X-Shared-Secret}: (Opsiyonel) Faz~2 üretim için
+          paylaşılan anahtar. Atandığında \texttt{/search}
+          bu başlığı arar; \texttt{/health}, \texttt{/metrics} ve
+          \texttt{/auth/...} izleme/kullanıcı yönetimi için açık tutulur.
 \end{itemize}
 
-Ara karelere yanıt: \texttt{\{"status":"continue", ...\}}; son kareye
+Ara karelere yanıt: \texttt{\{"status":"continue", \ldots\}}; son kareye
 yanıt:
 
 \begin{lstlisting}[language=none, caption={Son kareye sunucu yanıt örneği.}, label=lst:final-response]
@@ -83,6 +91,54 @@ yanıt:
 }
 \end{lstlisting}
 
+Kimlik doğrulama katmanı için \texttt{/auth} ön~ekiyle dört endpoint
+tanımlanmıştır (\Cref{tab:auth-endpoints}). Bu endpoint'ler yalnızca
+iPhone uygulamasıyla konuşur ve \texttt{X-Shared-Secret} başlığını
+\emph{aramaz}; bunun yerine \texttt{Authorization: Bearer <token>}
+başlığını kontrol eder. \Cref{lst:auth-register} örnek bir kayıt
+sözleşmesi gösterir.
+
+\begin{lstlisting}[language=none, caption={Yeni kullanıcı kaydı (\texttt{POST /auth/register}).}, label=lst:auth-register]
+Request:
+  POST /auth/register
+  Content-Type: application/json
+  {"username":"gokturk", "password":"hunter2!", "plate":"34 ABC 1234"}
+
+Response 201:
+  {"token":"IZwD_4xUBLQ90W1E8shqYNZqus13YxI--8xcc6_k-4Q",
+   "username":"gokturk",
+   "plate":"34 ABC 1234"}
+\end{lstlisting}
+
+\subsection{SQLite Şeması}
+
+Kullanıcı veritabanı tek bir SQLite dosyasında, gömme veri tabanıyla aynı
+disk hacmi üzerinde tutulur (\Cref{lst:sqlite-schema}). Dosya
+\texttt{/app/data/users.db} yoluna yazılır; \texttt{embeddings.pkl} ile
+aynı klasördedir, böylece tek bir kalıcı disk yedeği iki katmanın da
+durumunu kapsar.
+
+\begin{lstlisting}[language=SQL, caption={Kullanıcı veritabanı şeması.}, label=lst:sqlite-schema]
+CREATE TABLE IF NOT EXISTS users (
+    username       TEXT PRIMARY KEY,
+    password_hash  TEXT NOT NULL,
+    plate          TEXT NOT NULL,
+    created_at     REAL NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+CREATE TABLE IF NOT EXISTS tokens (
+    token       TEXT PRIMARY KEY,
+    username    TEXT NOT NULL,
+    created_at  REAL NOT NULL DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+);
+\end{lstlisting}
+
+Şifreler ham olarak hiçbir yere yazılmaz; \texttt{generate\_password\_hash}
+PBKDF2 + rastgele tuz üretir. Oturum token'ları \texttt{secrets.token\_urlsafe(32)}
+ile üretilmekte ve \texttt{Authorization: Bearer ...} başlığında taşınmakta;
+süre sınırlaması yoktur, kullanıcı çıkış yaptığında ilgili satır
+\texttt{tokens} tablosundan silinir.
+
 \subsection{Operasyonel Sertleştirmeler}
 
 Sergi öncesi yapılan üç hafif sertleştirme:
@@ -90,8 +146,9 @@ Sergi öncesi yapılan üç hafif sertleştirme:
 \begin{enumerate}[itemsep=2pt]
     \item \textbf{Opsiyonel paylaşılan anahtar:} \texttt{SHARED\_SECRET}
           ortam değişkeni atandığında \texttt{/search} endpoint'i
-          \texttt{X-Shared-Secret} başlığını arar; \texttt{/health} ve
-          \texttt{/metrics} izleme için açık tutulur.
+          \texttt{X-Shared-Secret} başlığını arar; \texttt{/health},
+          \texttt{/metrics} ve \texttt{/auth/...} izleme/kullanıcı için
+          açık tutulur.
     \item \textbf{Yapılandırılmış JSON günlüğü:} Her burst için bir
           satırlık JSON kayıt (\texttt{event:"burst\_complete"}, oturum
           kimliği, match kararı, similarity, liveness, gecikme) standart
@@ -103,63 +160,125 @@ Sergi öncesi yapılan üç hafif sertleştirme:
           doğrulama durumu tek bir JSON cevabıyla raporlanır.
 \end{enumerate}
 
-\section{ESP32-CAM: Kamera ve Ağ Köprüsü}
+\section{ESP32-CAM: Kamera, Wi-Fi ve BLE Çevresel}
 
 \subsection{Donanım Yapılandırması}
 
 AI-Thinker ESP32-CAM modülü, ESP32-WROOM-32 SoC üzerine entegre OV3660
 kamera modülü ve antenden oluşur. Wi-Fi STA modunda sürücünün telefon
-hotspot'una bağlanır; flash etmek için 3.3~V FTDI bağlantısı kullanılır
-(IO0 GND'ye çekilerek bootloader moduna geçilir).
+hotspot'una bağlanır; aynı anda Bluetooth yığınını kullanarak BLE
+çevresel olarak telefona görünür. Flash etmek için programlama dock'u
+(ESP32-CAM-MB) kullanılır; IO0 boot pini dock üstündeki düğme ile GND'ye
+çekilerek bootloader moduna geçilir. Önemli bir pratik nokta, modülün
+çalışma sırasında ayrı bir USB kaynağıyla beslenmesidir: kamera + Wi-Fi
++ BLE aynı anda 500~mA'ya yakın pik akım çekebilmekte, STM32 kartının
+5~V pininden besleme \emph{brown-out} reset'ine yol açabilmektedir.
+Sergi düzeneğinde ESP-CAM ya kendi dock'undan ya da ayrı bir USB
+şarj kaynağından beslenir; STM32 kartından yalnızca üç bağlantı
+gider: USART6 RX, USART6 TX ve GND.
 
 \subsection{Yazılım Akışı}
 
 Firmware PlatformIO + Arduino-ESP32 çekirdeği üzerinde C++ olarak
-yazılmıştır. Ana döngü iki görevi yürütür:
+yazılmıştır. Ana döngü üç görevi yürütür:
 
 \begin{enumerate}[label=(\arabic*),itemsep=1pt]
-    \item STM32'den UART üzerinden gelen \texttt{CAPTURE\textbackslash n}
-          komutunu dinlemek,
+    \item STM32'den USART üzerinden gelen \texttt{CAPTURE\textbackslash n}
+          komutunu dinlemek;
     \item Komut geldiğinde 5~FPS hızında 10 JPEG kare yakalamak, her
           birini yeni bir HTTP POST isteğiyle EC2'ye iletmek ve son
-          karenin JSON cevabını parse etmek.
+          karenin JSON cevabını parse etmek;
+    \item STM32'den gelen telefon yönlü mesajları
+          (\texttt{SCANNING/MATCH:.../NOMATCH/PANIC/NETERR}) BLE
+          \texttt{FFE1} karakteristiğine \emph{notify} olarak iletmek.
 \end{enumerate}
 
 Burst boyunca her POST aynı oturum kimliğini (\texttt{X-Session-Id})
 taşır. Son kare üzerindeki yanıt JSON olarak parse edildikten sonra:
 
 \begin{itemize}[itemsep=1pt]
-    \item Eşleşme varsa: STM32'ye \texttt{1;<name>;<sim>\textbackslash n} CSV satırı,
-    \item Eşleşme yoksa: \texttt{0;;<sim>\textbackslash n},
+    \item Eşleşme varsa: STM32'ye \texttt{RESULT:1;<name>;<sim>\textbackslash n},
+    \item Eşleşme yoksa: \texttt{RESULT:0;;<sim>\textbackslash n},
     \item Hata durumunda: \texttt{ERR:<tag>\textbackslash n} (örnek tag:
           \texttt{no\_wifi}, \texttt{http\_500}, \texttt{json\_parse}).
 \end{itemize}
 
+\subsection{BLE GATT Hizmeti}
+
+ESP-CAM, Arduino BLE API üzerinden tek bir çevresel hizmet yayınlar:
+servis UUID \texttt{0xFFE0}, karakteristik UUID \texttt{0xFFE1}; özellikler
+NOTIFY + READ + WRITE. Modülün yayın adı \texttt{TaxiGuard}'dır.
+\Cref{lst:esp-ble-setup} ilgili bring-up çağrılarını özetler.
+
+\begin{lstlisting}[language=C++, caption={ESP32-CAM tarafında BLE çevresel hizmetin kurulumu (özet).}, label=lst:esp-ble-setup]
+BLEDevice::init("TaxiGuard");
+BLEDevice::setMTU(247);                  // varsayilan 23 mesajlari 20B'da kesiyor
+BLEServer*   server   = BLEDevice::createServer();
+BLEService*  service  = server->createService("0000ffe0-0000-1000-8000-00805f9b34fb");
+BLECharacteristic* ch = service->createCharacteristic(
+    "0000ffe1-0000-1000-8000-00805f9b34fb",
+    BLECharacteristic::PROPERTY_NOTIFY |
+    BLECharacteristic::PROPERTY_READ   |
+    BLECharacteristic::PROPERTY_WRITE);
+ch->addDescriptor(new BLE2902());        // CCCD - notification enable
+service->start();
+server->getAdvertising()->start();
+\end{lstlisting}
+
+\texttt{setMTU(247)} çağrısı önemlidir: varsayılan 23~B MTU,
+\texttt{MATCH:Gokturk;0.66} gibi 18--22~B'lık satırların ilk dilime
+sığmasına izin verir ancak similarity alanı ikinci dilime kayarken
+parça sınırı görsel olarak ``yarım satır'' biçiminde algılanmakta,
+iPhone tarafındaki parser tipik olarak ondalık kısmı düşürmekte ve
+similarity sıfır görünmekteydi. 247 baytlık MTU, sistemde tanımlı tüm
+mesajları tek pakette gönderilmesini garanti eder.
+
 \subsection{Yapılandırma}
 
-Wi-Fi bilgileri, sunucu URL'si ve TLS bayrağı \texttt{include/config.h}
-dosyasından okunur. Faz 1'de (HTTP) ve Faz 2'de (HTTPS + Let's Encrypt)
-arasındaki tek farklılık bu dosyadır; sertifika güncellemesi ve TLS
-bayrağı ayarı sonrasında yeni image flash edilir.
+Wi-Fi bilgileri, sunucu URL'si, TLS bayrağı ve USART pinleri
+\texttt{include/config.h} dosyasından okunur. Faz~1'de (HTTP) ve Faz~2'de
+(HTTPS + Let's Encrypt) arasındaki tek farklılık bu dosyadır; sertifika
+güncellemesi ve TLS bayrağı ayarı sonrasında yeni image flash edilir.
 
 \section{STM32 Olay Yöneticisi: Gerçekleme}
 
-\subsection{Donanım Konfigürasyonu}
+\subsection{Saat Üretimi ve Donanım Konfigürasyonu}
+
+Kart üzerindeki HSE osilatörü 8~MHz olmasına karşın, CubeMX'in
+ürettiği \texttt{stm32f7xx\_hal\_conf.h} dosyasında \texttt{HSE\_VALUE}
+makrosu 25~MHz olarak tanımlanmaktadır (NUCLEO-F767ZI için yanlış bir
+varsayılan). Bu sapma, HSE üzerinden PLL kurulduğunda \texttt{HAL\_UART\_Init}
+fonksiyonunun çalıştırdığı BRR hesabını ölçeklendiriyor ve UART baud hızını
+sapıtıyordu; deneyde 115200 yerine yaklaşık 38400 sembol/saniye gözleniyordu.
+Bu sorunu \texttt{HSE\_VALUE} makrosunu manuel olarak düzeltmek yerine,
+HAL ile çakışmadan kurtulmak için \textbf{HSI tabanlı PLL} kurulumuna
+geçilmiştir. Dahili 16~MHz osilatör PLL girişine verilir, çıkışta
+216~MHz HCLK üretilir; \texttt{SystemClock\_Config\_216MHz()} fonksiyonu
+\texttt{USER CODE 4} bölgesinde tanımlanmış ve \texttt{HAL\_Init()}'ten
+hemen sonra çağrılmıştır.
 
 CubeMX projesi NUCLEO-F767ZI üzerinde aşağıdaki çevre birimleri ile
-yapılandırılmıştır:
+yapılandırılmıştır (ayrıntılar için \Cref{app:pin-plani}'ye bakınız):
 
 \begin{itemize}[itemsep=1pt]
-    \item UART1, 115200~bps 8N1, PA9/PA10: ESP32-CAM ile haberleşme,
-    \item UART2, 9600~bps 8N1, PD5/PD6: HM-10 ile haberleşme,
-    \item GPIO: PB0 (yeşil), PD12 (sarı), PB14 (kırmızı), PD13 (buzzer),
-    \item EXTI: PC13 (TARA butonu, kart üstü mavi USER butonu), PA0 (harici PANİK butonu).
+    \item \textbf{USART6}, 115200~bps 8N1, \texttt{PG9 (D0, RX)} ve
+          \texttt{PG14 (D1, TX)}: ESP32-CAM ile haberleşme. Arduino
+          başlık silkscreen'i sayesinde kablo bağlama hatası
+          azaltılmıştır.
+    \item \textbf{USART3}, 115200~bps 8N1, \texttt{PD8/PD9}: ST-LINK VCP
+          üzerinden Mac terminal'ine \texttt{printf} debug çıkışı.
+    \item GPIO: \texttt{PB0} (LD1 yeşil), \texttt{PB7} (LD2 mavi,
+          heartbeat), \texttt{PB14} (LD3 kırmızı), \texttt{PD14}
+          (harici buzzer).
+    \item EXTI: \texttt{PC13} (B1 USER butonu = TARA), \texttt{PA0}
+          (opsiyonel harici PANİK butonu; sergi düzeneğinde takılı
+          değildir).
 \end{itemize}
 
-\textbf{Önemli not:} F767ZI'de Ethernet çevre birimi varsayılan olarak
+\textbf{Önemli not.} F767ZI'de Ethernet çevre birimi varsayılan olarak
 aktif gelir ve DCMI pinleri ile çakışır. Bu projede DCMI kullanılmadığı
-için ETH disabled bırakılmıştır; eski Plan A taslağındaki kamera doğrudan
-DCMI'ye bağlanacak senaryosu Plan B'ye geçişle birlikte düşmüştür.
+için ETH disabled bırakılmıştır; eski Plan~A taslağındaki kamera doğrudan
+DCMI'ye bağlanacak senaryosu Plan~B'ye geçişle birlikte düşmüştür.
 
 \subsection{Yazılım Mimarisi}
 
@@ -176,8 +295,7 @@ vtable üzerinden gerçekleşir:
 typedef struct {
     void     (*set_led)(sm_led_t led, bool on);
     void     (*set_buzzer)(bool on);
-    void     (*send_to_esp)(const char *line);
-    void     (*send_to_hm10)(const char *line);
+    void     (*send_to_esp)(const char *line);   /* hem RESULT hem telefon-yonlu */
     uint32_t (*now_ms)(void);
 } sm_callbacks_t;
 \end{lstlisting}
@@ -212,7 +330,7 @@ proje takvimini önemli ölçüde rahatlatmıştır.
 \midrule
 initial state              & IDLE + yeşil LED sabit\\
 TARA press                 & SCANNING geçişi + CAPTURE komutu\\
-ESP MATCH                  & MATCH durumu + kırmızı LED + buzzer + HM-10 frame\\
+ESP MATCH                  & MATCH durumu + kırmızı LED + buzzer + USART6 frame\\
 ESP NOMATCH                & NOMATCH yolu, yeşil LED, doğru frame\\
 scan timeout               & 15~s sonrası NETERR\\
 PANIC during scan          & PANIC durumunun her durumdan erişilebilir olması\\
@@ -220,7 +338,7 @@ hold expiry                & MATCH/NOMATCH/NETERR sonunda IDLE'a dönüş\\
 heartbeat                  & IDLE'da 5~s aralıkla HB satırı\\
 TARA during hold           & Hold penceresinin kesilebilmesi\\
 late ESP result            & Timeout sonrası gelen yanıtın yok sayılması\\
-NETERR blink               & NETERR'de sarı LED'in periyodik geçişi\\
+NETERR blink               & NETERR'de LD2'nin periyodik geçişi\\
 oversized name             & 32 karakterden uzun isimde taşma yok\\
 \bottomrule
 \end{tabular}
@@ -241,7 +359,7 @@ static volatile app_state_t app_state = STATE_IDLE;
 static uint32_t state_entered_ms = 0;
 
 static void apply_state_outputs(app_state_t s) {
-    /* tüm LED + buzzer kapat, sonra duruma göre aç */
+    /* tum LED + buzzer kapat, sonra duruma gore ac */
     HAL_GPIO_WritePin(LED_GREEN_GPIO_Port,  LED_GREEN_Pin,  GPIO_PIN_RESET);
     /* ... */
     switch (s) {
@@ -260,68 +378,85 @@ void HAL_GPIO_EXTI_Callback(uint16_t pin) {
 }
 \end{lstlisting}
 
-UART1 RX yolu (ESP'den gelen \texttt{RESULT:..}/\texttt{ERR:..}/\texttt{HB}
+USART6 RX yolu (ESP'den gelen \texttt{RESULT:..}/\texttt{ERR:..}/\texttt{HB}
 satırları), bir bayt-bayt kesme rutini ile \texttt{\textbackslash n}'a kadar bir
 satır tamponuna birikir; ana döngüde tamamlanan satırlar
 \texttt{process\_cam\_line()} ile parse edilerek MATCH/NOMATCH/NETERR
 geçişlerini tetikler.
 
-\section{Android Uygulaması: TaxiGuard v2}
+\section{iPhone Uygulaması: TaksiGuvenlik}
 
 \subsection{Bileşenler}
 
-Uygulama Kotlin + Jetpack Compose ile yazılmış, hedef SDK 34, minimum
-SDK 26'dır. Üç ana modülden oluşur:
+Uygulama Swift 5.9 ve SwiftUI ile yazılmış, hedef iOS sürümü 17.0'dır.
+Onüç dosyalık düz bir klasör yapısında düzenlenmiş; ana sorumluluk
+ayrımı şu şekildedir:
 
 \begin{itemize}[itemsep=2pt]
-    \item \textbf{\texttt{Hm10Service}}: Bir foreground servis olarak
-          BLE central rolünde çalışır. HM-10 modülünü \texttt{0xFFE0}
-          servis UUID'sine göre tarar, bulunduğunda GATT bağlantısı kurar
-          ve \texttt{0xFFE1} karakteristiğinin notifikasyonlarına abone
-          olur. MTU parçalanmasına karşı dahili bir \emph{line buffer}
-          her \texttt{\textbackslash n}'a kadar baytları biriktirir.
-    \item \textbf{\texttt{FrameParser}}: Gelen ASCII satırları parse
-          ederek bir \texttt{MatchEvent} sealed hierarchy'sine dönüştürür
-          (\texttt{Scanning, Match(name, sim), NoMatch, Panic, NetError,
-          Heartbeat, Unknown}).
-    \item \textbf{\texttt{EmergencyDialer}}: MATCH veya PANIC event'i
-          alındığında \texttt{Intent.ACTION\_CALL("tel:155")}'i çağırır;
-          \texttt{CALL\_PHONE} izni yoksa \texttt{ACTION\_DIAL} dönüşüne
-          fallback yapar (dialer önceden doldurulmuş şekilde açılır).
+    \item \textbf{\texttt{AuthManager}}: \texttt{@MainActor} +
+          \texttt{@Observable} bir sınıf. URLSession ile \texttt{/auth/...}
+          endpoint'lerini çağırır; başarılı oturum bilgilerini
+          \emph{iOS Keychain}'e (\texttt{KeychainStore} yardımcısı)
+          yazar. Uygulama açılışında \texttt{bootstrap()} fonksiyonu
+          önbellekteki token ile \texttt{/auth/me} çağırarak sessiz
+          doğrulama yapar; 401 dönerse oturum yerel olarak temizlenir.
+    \item \textbf{\texttt{BLEManager}}: Eski Plan~B taslağında ayrı bir
+          servis sınıfı olarak tasarlanmıştı; mevcut sürümde \texttt{NSObject}
+          + \texttt{CoreBluetooth} central rolünde tek bir
+          \texttt{ObservableObject}'tir. Yalnızca cihaz adı \texttt{TaxiGuard}
+          ile eşleşen çevresellere bağlanır, \texttt{FFE0/FFE1}
+          karakteristiğine notify abone olur ve gelen MTU 247 paketleri
+          için bir dahili \emph{line buffer} her \texttt{\textbackslash n}'a
+          kadar baytları biriktirir.
+    \item \textbf{\texttt{AppState}}: \texttt{@Observable} bir durum
+          modeli; BLE bağlantı durumu, mevcut FSM durumu, son MATCH
+          adı/similarity'si, kalp atışı ve olay günlüğü.
+    \item \textbf{View katmanı}: \texttt{RootView} kimlik durumuna göre
+          \texttt{LoginView} / \texttt{RegisterView} ya da \texttt{HomeView}
+          (\texttt{TabView}) gösterir. TabView içinde sürücüye yönelik
+          üç sekme bulunur: \texttt{DashboardView}, \texttt{ScanView} ve
+          \texttt{ProfileView}.
 \end{itemize}
 
-UI tek ekrandır (\texttt{HomeScreen}); bağlantı bandı, son MATCH kartı,
-ekran içi olay günlüğü ve servis Başlat/Durdur kontrolleri içerir.
-Ayrıca, donanım yokken bile parse + dial akışını tek telefonda doğrulamak
-için \emph{``DEV: Simulate MATCH''} butonu yer alır. Bu buton, servise
-\texttt{ACTION\_SIMULATE\_MATCH} intent'i göndererek sahte bir
-\texttt{MATCH:Test\_Subject;0.95} satırını parse pipeline'ına besler;
-böylece HM-10 elimizde olmadan da uygulamanın MATCH$\rightarrow$155
-zinciri doğrulanabilmektedir.
+MATCH veya PANIC satırı geldiğinde \texttt{BLEManager}, iOS'un
+\texttt{tel://}<numara> URL şemasını \texttt{UIApplication.shared.open}
+çağrısıyla açar. iOS, üçüncü taraf uygulamaların kullanıcı dokunmadan
+tam-otomatik arama başlatmasına izin vermez \cite{apple_tel_url}; bu
+durum tezde \emph{yanlış pozitif arama koruması} olarak savunulmuştur
+(\cref{sec:iphone-app}). Test ortamında \texttt{emergencyNumber}
+sabiti geçici olarak ekibe ait bir cep telefonuna yönlendirilmiş;
+demo öncesi 155 olarak güncellenecektir.
 
 \subsection{İzinler ve Sandbox Davranışı}
 
-\Cref{tab:android-izinler} uygulamanın manifest'inde tanımlı izinleri ve
-gerekçelerini özetler.
+\Cref{tab:ios-izinler} uygulamanın \texttt{Info.plist}'inde tanımlı
+izinleri ve gerekçelerini özetler.
 
 \begin{table}[h!]
 \centering
-\caption{Android izinleri ve gerekçeleri.}
-\label{tab:android-izinler}
+\caption{iOS Info.plist izinleri ve gerekçeleri.}
+\label{tab:ios-izinler}
 \small
 \begin{tabular}{l l}
 \toprule
-\textbf{İzin} & \textbf{Gerekçe}\\
+\textbf{Anahtar} & \textbf{Gerekçe}\\
 \midrule
-\texttt{BLUETOOTH\_SCAN}                          & API 31+ BLE cihaz keşfi\\
-\texttt{BLUETOOTH\_CONNECT}                        & GATT bağlantı kurma\\
-\texttt{CALL\_PHONE}                               & \texttt{Intent.ACTION\_CALL("tel:155")}\\
-\texttt{FOREGROUND\_SERVICE\_CONNECTED\_DEVICE}    & Servis kategorisi (BLE)\\
-\texttt{POST\_NOTIFICATIONS}                       & API 33+ foreground bildirimi\\
-\texttt{ACCESS\_FINE\_LOCATION}                    & API 26--30 (legacy BLE keşif)\\
+\texttt{NSBluetoothAlwaysUsageDescription}      & ESP32-CAM ile BLE\\
+\texttt{NSBluetoothPeripheralUsageDescription}  & GATT yazma izni\\
+\texttt{UIBackgroundModes: bluetooth-central}   & Uygulama arka plana indiğinde notify almak\\
+\texttt{LSApplicationQueriesSchemes: tel}       & \texttt{tel://} URL şeması\\
+\texttt{NSAppTransportSecurity: NSAllowsArbitraryLoads} & Demo HTTP backend (Faz~2'de kaldırılacak)\\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{XcodeGen ile Proje Yönetimi}
+
+Xcode proje dosyası (\texttt{TaksiGuvenlik.xcodeproj}) elle değil,
+\texttt{XcodeGen} aracıyla \texttt{project.yml} tanımından üretilir.
+Dosya ekle/sil işlemi sonrasında \texttt{xcodegen} komutu yeterlidir;
+bu sayede Git üzerinde sürüm yönetimi yapılan tek manifest dosyasına
+indirilmiştir.
 
 \section{Ölçüm Harness'i: \texttt{far\_frr.py}}
 \label{sec:harness}

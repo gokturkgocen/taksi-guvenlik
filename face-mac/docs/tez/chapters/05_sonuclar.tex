@@ -140,34 +140,31 @@ edilen değere göre güncellenip Docker konteyneri yeniden başlatılır.
 
 \section{Donanım Entegrasyon Doğrulaması}
 
-\paragraph{ESP32-CAM $\rightarrow$ EC2.} Uçtan uca burst akışı, sergi
-öncesi yapılan tezgah testlerinde doğrulanmıştır: ESP32-CAM Wi-Fi STA
-modunda hotspot'a bağlanmakta, 10 kareyi sunucuya POST etmekte ve JSON
-yanıtı parse etmektedir. Server tarafındaki yapılandırılmış JSON günlüğü,
-gelen burst sayısını, kalite-geçen kare sayısını ve gecikmeyi izlemekte
-kullanılmıştır.
+\paragraph{ESP32-CAM $\rightarrow$ EC2.} Uçtan uca burst akışı tezgahta
+doğrulanmıştır: ESP32-CAM Wi-Fi STA modunda hotspot'a bağlanmakta, 10
+kareyi sunucuya POST etmekte ve JSON yanıtı parse etmektedir. Server
+tarafındaki yapılandırılmış JSON günlüğü, gelen burst sayısını,
+kalite-geçen kare sayısını ve gecikmeyi izlemekte kullanılmıştır.
 
-\paragraph{STM32 bring-up.} CubeMX projesi açılmış, build geçmiş ve
-kart flash edilmiştir. Onboard LED (LD1/LD2/LD3) GPIO toggle testleri
-yapılmıştır. Bu tezin yazıldığı tarihte; STM32 ile ESP32-CAM'in birlikte
-ayağa kaldırılması ve UART köprüsünün uçtan uca test edilmesi planlanmış
-ancak henüz tamamlanmamıştır. State machine modülü ise host-side bir
-test harness'ında 12 senaryo için doğrulanmıştır (\Cref{tab:host-tests});
-bu test seti, donanım üzerinde flash + flash döngülerinin sayısını
-azaltmıştır.
+\paragraph{STM32 saat ve UART köprüsü.} HSI$\times$PLL ile 216~MHz HCLK
+üretilmiş, USART3 VCP'den \texttt{printf} debug çıktısı ve USART6
+üzerinden ESP32-CAM'e \texttt{CAPTURE/SCANNING/MATCH/\ldots} satırları
+doğrulanmıştır. State machine modülü host-side bir test harness'ında
+12 senaryo için ayrıca deterministik olarak doğrulanmıştır
+(\Cref{tab:host-tests}).
 
-\paragraph{HM-10 BLE.} HM-10 modülü, telefon ve nRF Connect uygulaması
-kullanılarak tek başına test edilmiştir. \texttt{0xFFE0} servis ve
-\texttt{0xFFE1} karakteristik üzerinden okuma--yazma çalışmış; modülün
-BLE tarafı sağlam bulunmuştur. STM32 UART2'ye bağlanması, durum geçiş
-satırlarının BLE notification olarak telefona iletilmesi sergi
-hazırlığının bir parçasıdır.
+\paragraph{ESP32-CAM BLE çevresel.} ESP32-CAM cihazı, BLE peripheral
+olarak \texttt{TaxiGuard} adıyla yayın yapmakta; \texttt{FFE0} servis
+ve \texttt{FFE1} karakteristik üzerinden \emph{notify} akışı
+çalışmaktadır. MTU 247 yapılandırması, \texttt{MATCH:<name>;<sim>}
+gibi 20 baytı aşan satırların tek pakette iletilmesini garanti eder.
 
-\paragraph{Android.} Uygulama iskeleti, donanım gelmeden önce yazılıp
-test edilmiştir. ``DEV: Simulate MATCH'' butonu üzerinden, sahte bir
-\texttt{MATCH:Test\_Subject;0.95} satırı parse pipeline'a beslenmekte
-ve telefon otomatik olarak 155 hattını aramaktadır
-(\texttt{Intent.ACTION\_CALL}).
+\paragraph{iPhone (TaksiGuvenlik).} SwiftUI uygulaması Login/Register
+akışından geçirilmiş, EC2 \texttt{/auth/...} endpoint'leri ile
+uçtan uca doğrulanmıştır. Kayıt sonrası otomatik olarak
+\texttt{TaxiGuard} BLE çevresel cihazına bağlanmakta, MATCH satırı
+geldiğinde \texttt{tel://}<numara> URL'i ile iOS dialer ekranı
+otomatik olarak açılmaktadır.
 
 \section{Tartışma}
 
@@ -192,6 +189,18 @@ hangi pratik faydaları sağladığı şu şekilde değerlendirilebilir:
           ek), hem SIM kart yönetimi hem de operatör servis bedeli gibi
           ekstra yükler getirirdi. Telefonun BLE ile köprüleştirilmesi,
           aynı işlevi sıfır ek altyapıyla sağlamıştır.
+    \item \textbf{Entegre BLE vs.\ ayrı modül (HM-10):} İlk Plan B'de yer
+          alan HM-10 modülü, ESP32-CAM'in zaten desteklediği BLE
+          çevresel arayüzü tarafından yerinden edildi. Bu karar sergi
+          öncesinde alındı; tek board üzerinde kamera + Wi-Fi + BLE
+          birleşince hem maliyet (~80 TL) hem de ek bir UART hattı
+          (STM32 USART2) düştü.
+    \item \textbf{iPhone \texttt{tel://} vs.\ Android otomatik çağrı:}
+          iOS sandbox tam-otomatik aramaya izin vermez; sürücünün
+          dialer ekranında yeşil tuşa tek dokunması istenir
+          \cite{apple_tel_url}. Bu, sergi içinde elde olan iPhone~16'nın
+          kullanılmasını sağladı ve aynı zamanda yanlış pozitif arama
+          koruması olarak savunulabilir bir tasarım sundu.
 \end{itemize}
 
 Kısıtlar ve limitler de açıkça raporlanmalıdır:

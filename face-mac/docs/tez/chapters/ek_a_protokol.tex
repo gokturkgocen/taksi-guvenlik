@@ -1,61 +1,85 @@
 \chapter{Mesaj Protokolleri}
 \label{app:protokol}
 
-Bu ek, sistemde tanımlanan tüm UART ve BLE mesaj çerçevelerini tek yerde
-listeler. Mesajlar üç hat üzerinde dolaşmaktadır:
+Bu ek, sistemde tanımlanan tüm UART, BLE ve HTTP mesaj çerçevelerini
+tek yerde listeler. Mesajlar üç hat üzerinde dolaşmaktadır:
 
 \begin{itemize}[itemsep=1pt]
-    \item \textbf{UART1} (115200~bps, 8N1): STM32 $\leftrightarrow$ ESP32-CAM
-    \item \textbf{UART2} (9600~bps, 8N1): STM32 $\leftrightarrow$ HM-10
-    \item \textbf{BLE GATT} (FFE0/FFE1): HM-10 $\leftrightarrow$ Telefon
-          (transparent, UART2'nin baytları aynen iletilir)
+    \item \textbf{USART6} (115200~bps, 8N1): STM32 $\leftrightarrow$ ESP32-CAM,
+          Arduino başlık silkscreen'inde \texttt{D0/D1} olarak işaretli
+          \texttt{PG9}/\texttt{PG14} pinleri.
+    \item \textbf{BLE GATT} (FFE0/FFE1, MTU 247): ESP32-CAM (peripheral)
+          $\leftrightarrow$ iPhone (central). ESP-CAM, STM32'den UART
+          üzerinden aldığı telefon yönlü satırları aynen \emph{notify}
+          ile karşı tarafa iletir.
+    \item \textbf{HTTPS / HTTP} (port 8000): ESP32-CAM ve iPhone
+          $\rightarrow$ EC2 (Flask). ESP-CAM yalnızca \texttt{/search}'i,
+          iPhone yalnızca \texttt{/auth/...} endpoint'lerini kullanır.
 \end{itemize}
 
-\section{UART1 --- STM32 / ESP32-CAM}
+\section{USART6 --- STM32 / ESP32-CAM}
 
 \paragraph{STM32 $\rightarrow$ ESP32-CAM}
 
 \begin{tabular}{l l}
 \toprule
-\textbf{Komut} & \textbf{Anlam}\\
-\midrule
-\texttt{CAPTURE\textbackslash n}    & 10-frame burst başlat ve sunucuya gönder\\
-\bottomrule
-\end{tabular}
-
-\paragraph{ESP32-CAM $\rightarrow$ STM32 (RESULT)}
-
-Burst tamamlandığında veya hata oluştuğunda tek satırlık CSV:
-
-\begin{tabular}{l l}
-\toprule
 \textbf{Satır}                              & \textbf{Anlam}\\
 \midrule
-\texttt{1;<name>;<sim>\textbackslash n}     & MATCH; isim ve similarity\\
-\texttt{0;;<sim>\textbackslash n}           & NOMATCH; en yakın similarity\\
-\texttt{ERR:<tag>\textbackslash n}          & Hata; tag örnek: no\_wifi, http\_500, json\_parse, timeout\\
+\texttt{CAPTURE\textbackslash n}            & 10-frame burst başlat ve sunucuya gönder\\
+\texttt{SCANNING\textbackslash n}           & ESP'nin telefona forward edeceği bilgi satırı\\
+\texttt{MATCH:<name>;<sim>\textbackslash n} & Telefona forward (pozitif eşleşme)\\
+\texttt{NOMATCH\textbackslash n}            & Telefona forward (eşleşme yok)\\
+\texttt{PANIC\textbackslash n}              & Telefona forward (PANİK butonu)\\
+\texttt{NETERR\textbackslash n}             & Telefona forward (sunucu/Wi-Fi hatası)\\
 \bottomrule
 \end{tabular}
 
-\section{UART2 ve BLE --- STM32 / HM-10 / Telefon}
+\paragraph{ESP32-CAM $\rightarrow$ STM32}
 
-HM-10 transparent çalıştığı için STM32'nin UART2'ye yazdığı satırlar BLE
-notification olarak telefona iletilir.
+Burst tamamlandığında veya hata oluştuğunda tek satırlık çıktı:
 
 \begin{tabular}{l l}
 \toprule
-\textbf{Satır}                                   & \textbf{Anlam}\\
+\textbf{Satır}                                       & \textbf{Anlam}\\
 \midrule
-\texttt{SCANNING\textbackslash n}                & TARA başlangıcı\\
-\texttt{MATCH:<name>;<sim>\textbackslash n}      & Pozitif eşleşme (telefon 155'i arar)\\
-\texttt{NOMATCH\textbackslash n}                 & Negatif burst\\
-\texttt{PANIC\textbackslash n}                   & PANİK butonu (telefon 155'i arar)\\
-\texttt{NETERR\textbackslash n}                  & Scan timeout veya transport hata\\
-\texttt{HB\textbackslash n}                      & 5\,s aralıkla kalp atışı (yalnızca IDLE'da)\\
+\texttt{RESULT:1;<name>;<sim>\textbackslash n}       & MATCH; isim ve similarity\\
+\texttt{RESULT:0;;<sim>\textbackslash n}             & NOMATCH; en yakın similarity\\
+\texttt{ERR:<tag>\textbackslash n}                   & Hata; tag örnek: no\_wifi, http\_500, json\_parse, timeout\\
+\texttt{HB\textbackslash n}                          & 5\,s aralıkla heartbeat (modülün canlı olduğunun göstergesi)\\
 \bottomrule
 \end{tabular}
 
-\section{HTTP --- ESP32-CAM / Sunucu}
+\section{BLE --- ESP32-CAM (\texttt{TaxiGuard}) / iPhone}
+
+ESP32-CAM bir BLE çevresel (\emph{peripheral}) hizmeti yayınlar; iPhone
+uygulaması CoreBluetooth ile bağlanarak \texttt{FFE1} karakteristiğinin
+notify aboneliğini açar.
+
+\begin{itemize}[itemsep=1pt]
+    \item \textbf{Cihaz adı:} \texttt{TaxiGuard}
+    \item \textbf{Servis UUID:} \texttt{0000ffe0-0000-1000-8000-00805f9b34fb}
+    \item \textbf{Karakteristik UUID:} \texttt{0000ffe1-0000-1000-8000-00805f9b34fb}
+          (NOTIFY + READ + WRITE)
+    \item \textbf{MTU:} 247 (\texttt{BLEDevice::setMTU(247)})
+\end{itemize}
+
+Karakteristik üzerinden notify edilen ASCII satırlar, USART6 üzerinden
+STM32'den gelen telefon yönlü mesajların aynısıdır:
+
+\begin{tabular}{l l}
+\toprule
+\textbf{Satır}                                   & \textbf{Telefon eylemi}\\
+\midrule
+\texttt{SCANNING\textbackslash n}                & Scan kartı turuncu, ``Yolcu taranıyor''\\
+\texttt{MATCH:<name>;<sim>\textbackslash n}      & Kırmızı uyarı kartı + \texttt{tel://}<numara> aç\\
+\texttt{NOMATCH\textbackslash n}                 & Yeşil ``Eşleşme yok'' kartı\\
+\texttt{PANIC\textbackslash n}                   & Kırmızı uyarı + \texttt{tel://}<numara> aç\\
+\texttt{NETERR\textbackslash n}                  & Sarı ``Bağlantı hatası'' kartı\\
+\texttt{HB\textbackslash n}                      & Bağlantı sağlamlık göstergesi (sessiz)\\
+\bottomrule
+\end{tabular}
+
+\section{HTTP --- ESP32-CAM / Sunucu \texttt{/search}}
 
 \paragraph{İstek.}
 
@@ -66,7 +90,7 @@ Content-Type: application/octet-stream
 X-Session-Id: 7c5f9a3b-...-e1
 X-Frame-Index: 7
 X-Frame-Total: 10
-X-Shared-Secret: <token>     # opsiyonel
+X-Shared-Secret: <token>     # opsiyonel, Faz 2'de zorunlu
 
 <JPEG bytes>
 \end{lstlisting}
@@ -110,3 +134,59 @@ Content-Type: application/json
 500 & \texttt{\{"error":"session\_lost"\}}          & Oturum timeout sonrası temizlenmiş\\
 \bottomrule
 \end{tabular}
+
+\section{HTTP --- iPhone / Sunucu \texttt{/auth}}
+
+\paragraph{Kayıt.}
+
+\begin{lstlisting}[language=none, basicstyle=\ttfamily\footnotesize]
+POST /auth/register HTTP/1.1
+Content-Type: application/json
+
+{"username":"gokturk","password":"hunter2!","plate":"34 ABC 1234"}
+\end{lstlisting}
+
+\paragraph{Yanıt (başarılı).}
+
+\begin{lstlisting}[language=none, basicstyle=\ttfamily\footnotesize]
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{"token":"IZwD_4xUBLQ90W1E8shqYNZqus13YxI--8xcc6_k-4Q",
+ "username":"gokturk",
+ "plate":"34 ABC 1234"}
+\end{lstlisting}
+
+\paragraph{Diğer endpoint'ler.}
+
+\begin{tabular}{l l l}
+\toprule
+\textbf{Endpoint}              & \textbf{Gövde / başlık}                             & \textbf{Başarı}\\
+\midrule
+\texttt{POST /auth/login}      & \texttt{\{username, password\}}                     & 200 \texttt{\{token, username, plate\}}\\
+\texttt{GET\phantom{ } /auth/me}     & \texttt{Authorization: Bearer <token>}              & 200 \texttt{\{username, plate\}}\\
+\texttt{POST /auth/logout}     & \texttt{Authorization: Bearer <token>}              & 200 \texttt{\{ok: true\}}\\
+\bottomrule
+\end{tabular}
+
+\paragraph{Hata yanıtları.}
+
+\begin{tabular}{l l l}
+\toprule
+\textbf{Kod} & \textbf{Body} & \textbf{Anlam}\\
+\midrule
+400 & \texttt{\{"error":"bad\_username"\}}        & Kullanıcı adı 3--32 karakter dışında\\
+400 & \texttt{\{"error":"bad\_password"\}}        & Şifre 6 karakterden kısa\\
+400 & \texttt{\{"error":"bad\_plate"\}}           & Plaka regex'i tutmuyor\\
+400 & \texttt{\{"error":"missing\_credentials"\}} & Login için kullanıcı veya şifre eksik\\
+401 & \texttt{\{"error":"invalid\_credentials"\}} & Hatalı kullanıcı veya şifre\\
+401 & \texttt{\{"error":"missing\_token"\}}       & Authorization başlığı yok / hatalı\\
+401 & \texttt{\{"error":"invalid\_token"\}}       & Bearer geçersiz veya çıkış yapılmış\\
+409 & \texttt{\{"error":"username\_taken"\}}      & Aynı kullanıcı adıyla kayıt var\\
+\bottomrule
+\end{tabular}
+
+Plaka regex'i (sunucu + istemci ortak):
+\texttt{\textasciicircum\textbackslash d\{2\}\textbackslash s?[A-Z]\{1,3\}\textbackslash s?\textbackslash d\{2,4\}\$}
+formatı (örnek \texttt{34 ABC 1234}). Aynı plakaya birden çok kullanıcı
+kaydı tanımlanabilir.
