@@ -23,7 +23,7 @@ yayınlanmaktadır; bu paket bu çalışmanın bulut katmanında kullanılmışt
 Yüz tanıma sistemlerinin performansı tipik olarak iki tamamlayıcı oranla
 nicelendirilir:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item \textbf{Yanlış Kabul Oranı (FAR --- False Accept Rate):} aranan
           listede bulunmayan bir kişinin, aranan biri ile eşleştiği vakaların
           oranı.
@@ -66,7 +66,7 @@ vektörleri üzerinden ücretsiz olarak hesaplanmaktadır.
 Yüz tanıma iş yükünün gömülü tarafa yerleştirilmesi, üç temel kısıt
 nedeniyle bu projede tercih edilmemiştir:
 
-\begin{enumerate}[label=(\arabic*),itemsep=2pt]
+\begin{enumerate}
     \item \textbf{Hesaplama yükü:} ArcFace-R100 yaklaşık 24 milyon
           parametreye sahip bir CNN'dir. INT8 nicemleme sonrası bile
           STM32F767 sınıfı bir MCU için (240 MHz, $\leq$~512~KB RAM)
@@ -107,7 +107,7 @@ sağlamıştır; kullanıcının dialer'da yeşil tuşa tek dokunuşu, hem Apple
 sandbox gereği hem de \emph{yanlış pozitif arama koruması} olarak
 savunulan bir adım hâline gelmiştir. Android tarafında aynı sistem,
 \texttt{Intent.ACTION\_CALL} ile tek-dokunuşsuz çalışacak şekilde
-genişletilebilir; bu olasılık \cref{ch:sonuc-oneriler}'te ele alınmıştır.
+genişletilebilir; bu olasılık \ref{ch:sonuc-oneriler}'te ele alınmıştır.
 
 \section{Biyometrik Verilerin Yasal ve Etik Çerçevesi}
 
@@ -133,7 +133,7 @@ embedding vektörleridir; ham fotoğraf veri tabanına yazılmaz.
 Yukarıdaki dört eksen değerlendirildiğinde, mevcut çalışmanın özgün
 katkıları şu şekilde özetlenebilir:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item Açık kaynak InsightFace tabanlı bir tanıma sunucusunun, ESP32-CAM
           ile birlikte uçtan uca taksi senaryosuna uyarlanması;
     \item Çoklu kare centroid agregasyonu ve cross-frame standart sapması

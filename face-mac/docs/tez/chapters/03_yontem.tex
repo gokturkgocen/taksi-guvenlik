@@ -6,7 +6,7 @@
 
 Sistem, fiziksel ve mantıksal olarak üç bölgeden oluşur:
 
-\begin{enumerate}[label=\textbf{\Alph*.},itemsep=2pt]
+\begin{enumerate}
     \item \textbf{Araç İçi Modül}: ESP32-CAM (kamera + Wi-Fi + BLE çevresel),
           STM32 NUCLEO-F767ZI (olay yöneticisi), onboard LED'ler ve aktif
           buzzer, TARA (B1 USER) ile opsiyonel harici PANİK butonu.
@@ -20,7 +20,7 @@ Sistem, fiziksel ve mantıksal olarak üç bölgeden oluşur:
           olarak açar.
 \end{enumerate}
 
-\Cref{fig:sistem-mimarisi} bu üç bölge arasındaki veri akışını gösterir.
+Bölüm~\ref{fig:sistem-mimarisi} bu üç bölge arasındaki veri akışını gösterir.
 Önceki sürümde yer alan ayrı bir HM-10 Bluetooth modülü, ESP32-CAM'in
 zaten desteklediği BLE çevresel arayüzü tarafından üstlenildiği için
 mimariden çıkarılmıştır; STM32 yalnızca olay yönetimini yürütür ve
@@ -28,41 +28,14 @@ telefona iletilecek mesajları ESP32-CAM'in UART köprüsü üzerinden iletir.
 
 \begin{figure}[h!]
 \centering
-\begin{tikzpicture}[
-    node distance=10mm and 10mm,
-    box/.style={draw=ink, thick, minimum width=30mm, minimum height=12mm,
-                align=center, font=\small\sffamily},
-    cloud/.style={draw=ink, thick, minimum width=34mm, minimum height=12mm,
-                  align=center, font=\small\sffamily, fill=ink!5},
-    arr/.style={-{Latex[length=2mm]}, thick, ink},
-    arracc/.style={-{Latex[length=2mm]}, thick, accent},
-    arrsig/.style={-{Latex[length=2mm]}, thick, signal},
-    lab/.style={font=\scriptsize\ttfamily, ink},
-]
-\node[box] (esp) {ESP32-CAM\\\scriptsize 10-frame burst, Wi-Fi, BLE};
-\node[box, below=of esp] (stm) {STM32 F767ZI\\\scriptsize Olay yöneticisi};
-\node[box, right=22mm of esp] (wifi) {Wi-Fi 2.4\,GHz};
-\node[cloud, right=of wifi] (ec2) {AWS EC2\\\scriptsize Flask + InsightFace + Auth};
-\node[box, below=of ec2] (phone) {iPhone\\\scriptsize SwiftUI · tel:// dialer};
-
-\draw[arr] (esp.east) -- node[lab, above]{HTTP POST · JPEG} (wifi.west);
-\draw[arr] (wifi.east) -- (ec2.west);
-\draw[arracc] (ec2.west) to[bend left=30] node[lab, below]{JSON · match} (wifi.east);
-\draw[arr] (esp) -- node[lab, right]{USART6\\\scriptsize CAPTURE/RESULT} (stm);
-\draw[arr] (esp.south east) to[bend left=20]
-    node[lab, right]{BLE GATT FFE0/FFE1 · MTU 247} (phone.north);
-\draw[arracc] (phone.north west) to[bend left=20]
-    node[lab, left]{HTTPS · /auth/login,/register} (ec2.south west);
-\draw[arrsig] (phone.south) -- ++(0,-7mm)
-    node[lab, right]{tel://155 (test: 0543\dots)};
-\end{tikzpicture}
+\fbox{\parbox{0.85\linewidth}{\centering\vspace{4em}\textit{[Şekil yer tutucu --- TikZ figürü derlemede atlandı]}\vspace{4em}}}
 \caption{Sistem üst seviye blok şeması: ESP32-CAM tek kart üzerinde kamera, Wi-Fi ve BLE çevresel görevlerini üstlenir. iPhone'daki uygulama hem kullanıcı kaydı/girişi için EC2'ye doğrudan bağlanır, hem de tarama olaylarını ESP-CAM'in BLE'sinden alır.}
 \label{fig:sistem-mimarisi}
 \end{figure}
 
 Mimari tercihinde dört temel ilke belirleyici olmuştur:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item \textbf{Tek sorumluluk:} Her bileşen yalnızca tek bir görevden
           sorumludur (ESP32-CAM: kamera + ağ + BLE köprüsü, STM32: olay
           yönetimi, EC2: tanıma + kullanıcı yönetimi, iPhone: çağrı ekranı
@@ -90,13 +63,13 @@ Mimari tercihinde dört temel ilke belirleyici olmuştur:
 Gelişme raporunda \cite{ekin_gelisme_2026} başlatılan ``API destekli mi,
 yerel mi?'' tartışması, kapanışında üç alternatifi karşılaştırarak
 gerçekleştirme için API destekli yaklaşımı seçmiştir
-(\Cref{tab:alternatif-degerlendirme}). Bu seçimin önemli bir nüansı,
+(Bölüm~\ref{tab:alternatif-degerlendirme}). Bu seçimin önemli bir nüansı,
 ``API destekli''nin \emph{kapalı kutu üçüncü taraf bulut servisi}
 (AWS Rekognition, Azure Face, Face++) değil; ekibin kendi sunucusuna
 deploy ettiği \emph{açık kaynak InsightFace REST API} olarak
 yorumlanmasıdır. Bu yorum sayesinde:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item Kullanılan model (\texttt{buffalo\_l}) ve eşik değer
           ($\tau$) ekibin kontrolündedir; tezde FAR/FRR ölçümleri
           dolgun bir savunma için ölçülmüştür.
@@ -122,7 +95,7 @@ Donanım maliyeti, ısı, takvim riski & Ertelendi \\
 Kapalı üçüncü-taraf API (AWS Rekognition) & Hızlı entegrasyon &
 KVKK belirsizliği, fiyat/kapatma riski, model üzerinde kontrol yok & Elendi \\
 \textbf{Kendi InsightFace sunucumuz} & Tam kontrol, KVKK uyumlu, ücretsiz &
-Sunucu işletim yükü (EC2 \euro 5/ay) & \textbf{Seçildi} \\
+Sunucu işletim yükü (EC2 €5/ay) & \textbf{Seçildi} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -133,26 +106,12 @@ Tek bir karelik snapshot ile tanıma, geçici tıkanma, hareket bulanıklığı
 veya kırpılan yüz açısı durumlarında kırılgan davranır. Bu projede,
 ESP32-CAM tetikleme komutu alır almaz \textbf{5 FPS hızında 2 saniye
 boyunca 10 kare} yakalar ve her birini ardışık olarak sunucuya iletir
-(\Cref{fig:burst-akisi}). Sunucu tarafı, kareleri tek bir oturum (session)
+(Bölüm~\ref{fig:burst-akisi}). Sunucu tarafı, kareleri tek bir oturum (session)
 altında biriktirir; 10.\ kare ulaştığında agregasyonu çalıştırır.
 
 \begin{figure}[h!]
 \centering
-\begin{tikzpicture}[
-    node distance=2mm, font=\scriptsize\ttfamily,
-    every node/.style={draw=ink, minimum width=11mm, minimum height=7mm, align=center},
-]
-\node (n1) {f1\\\scriptsize sid=A,\,i=1/10};
-\node (n2) [right=of n1] {f2};
-\node (n3) [right=of n2] {f3};
-\node (n4) [right=of n3] {f4};
-\node (n5) [right=of n4] {f5};
-\node (n6) [right=of n5] {f6};
-\node (n7) [right=of n6] {f7};
-\node (n8) [right=of n7] {f8};
-\node (n9) [right=of n8] {f9};
-\node (n10) [right=of n9, draw=signal, very thick] {f10\\\scriptsize final};
-\end{tikzpicture}
+\fbox{\parbox{0.85\linewidth}{\centering\vspace{4em}\textit{[Şekil yer tutucu --- TikZ figürü derlemede atlandı]}\vspace{4em}}}
 \caption{ESP32-CAM tarafından yakalanan 10 karelik burst. Her kare aynı oturum kimliğini taşır;
 yalnızca son kareye sunucu \emph{karar} ile yanıt verir, önceki karelerin yanıtı bir devam (continue) bildirimidir.}
 \label{fig:burst-akisi}
@@ -160,7 +119,7 @@ yalnızca son kareye sunucu \emph{karar} ile yanıt verir, önceki karelerin yan
 
 Bu yaklaşımın iki kazancı vardır:
 
-\begin{enumerate}[label=(\arabic*),itemsep=2pt]
+\begin{enumerate}
     \item \textbf{Robustluk:} 10 kareden bir kısmı kalite filtresine
           takılsa bile, en az 5 geçerli kare bulunduğunda doğruluk
           tek-kare durumuna kıyasla belirgin biçimde yükselir
@@ -175,7 +134,7 @@ Bu yaklaşımın iki kazancı vardır:
 
 Sunucu, her kare için aşağıdaki kalite kapısını uygular:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item Yüz tespit skoru (\texttt{det\_score}) $\geq$ 0.7,
     \item Yüz bölgesi alanı (piksel) $\geq$ 80$\times$80,
     \item Yüz dönüklüğü (yaw) açısı $|$yaw$|$ $\leq$ 30$^{\circ}$,
@@ -221,38 +180,13 @@ STM32 NUCLEO-F767ZI üzerinde çalışan firmware, bir sonlu durum makinesi
 (\emph{finite state machine}, FSM) etrafında düzenlenmiştir.
 Modül HAL bağımlılığından arındırılmış, taşınabilir C99 olarak yazılmış
 ve donanımla iletişimi bir \emph{callback vtable} üzerinden
-gerçekleştirmektedir (\Cref{fig:fsm}). Bu sayede aynı kaynak dosyası
+gerçekleştirmektedir (Bölüm~\ref{fig:fsm}). Bu sayede aynı kaynak dosyası
 hem CubeIDE projesinde derlenebilmekte, hem de PC üzerinde sahte saat
 ve sahte callback'lerle birim testten geçirilebilmektedir.
 
 \begin{figure}[h!]
 \centering
-\begin{tikzpicture}[
-    node distance=18mm and 18mm,
-    state/.style={draw=ink, thick, rounded corners=2pt,
-                  minimum width=20mm, minimum height=9mm,
-                  align=center, font=\small\sffamily},
-    accent/.style={draw=signal, very thick},
-    arr/.style={-{Latex[length=1.6mm]}, thick, ink, font=\scriptsize\ttfamily},
-]
-\node[state] (idle) {IDLE};
-\node[state, right=of idle] (scan) {SCANNING};
-\node[state, above right=8mm and 14mm of scan] (match) {MATCH};
-\node[state, below right=8mm and 14mm of scan] (nom) {NOMATCH};
-\node[state, accent, below=20mm of scan] (panic) {PANIC};
-\node[state, right=of nom] (neterr) {NETERR};
-
-\draw[arr] (idle) -- node[above]{TARA} (scan);
-\draw[arr] (scan) -- node[sloped, above]{MATCH} (match);
-\draw[arr] (scan) -- node[sloped, below]{NOMATCH} (nom);
-\draw[arr] (scan) -- node[sloped, above]{timeout / ERR} (neterr);
-\draw[arr, dashed] (match.west) to[bend left=30] node[above]{hold 5\,s} (idle.north);
-\draw[arr, dashed] (nom.west) to[bend right=30] node[below]{hold 2\,s} (idle.south);
-\draw[arr, dashed] (neterr.north) to[bend left=15] node[right]{hold 3\,s} (idle.east);
-\draw[arr, signal] (idle.south) to[bend right=25] node[left]{PANIC} (panic.west);
-\draw[arr, signal] (scan.south) to[bend left=15] node[right]{PANIC} (panic.east);
-\draw[arr, dashed] (panic.west) to[bend left=45] node[left]{hold 10\,s} (idle.south);
-\end{tikzpicture}
+\fbox{\parbox{0.85\linewidth}{\centering\vspace{4em}\textit{[Şekil yer tutucu --- TikZ figürü derlemede atlandı]}\vspace{4em}}}
 \caption{STM32 olay yöneticisi durum geçiş diyagramı. PANIC olayı her durumda erişilebilir.}
 \label{fig:fsm}
 \end{figure}
@@ -260,7 +194,7 @@ ve sahte callback'lerle birim testten geçirilebilmektedir.
 Durum çıktıları aşağıdaki gibi tanımlanmıştır (LED'ler kart üstündeki
 LD1 yeşil, LD2 mavi heartbeat ve LD3 kırmızı; buzzer harici, PD14):
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item \textbf{IDLE:} LD1 (yeşil) sabit, LD2 yaklaşık 1~Hz heartbeat,
           5\,s'de bir \texttt{HB\textbackslash n} satırı USART6'ya yazılır.
     \item \textbf{SCANNING:} LD2 hızlı yanıp söner, USART6'ya
@@ -283,7 +217,7 @@ sağlayabilmektedir. Bu nedenle telefonun haberleşmesi, ESP32-CAM üzerinde
 çalışan bir \textbf{BLE çevresel (peripheral)} hizmeti tarafından yapılır.
 ESP-CAM, GATT katmanında aşağıdaki yapıyı yayınlar:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item \textbf{Cihaz adı:} \texttt{TaxiGuard}
     \item \textbf{Servis UUID:} \texttt{0000ffe0-0000-1000-8000-00805f9b34fb}
     \item \textbf{Karakteristik UUID:} \texttt{0000ffe1-0000-1000-8000-00805f9b34fb}
@@ -295,7 +229,7 @@ ESP-CAM, GATT katmanında aşağıdaki yapıyı yayınlar:
 iPhone uygulaması, CoreBluetooth \emph{central} rolünde
 \texttt{TaxiGuard} cihazına bağlanır, \texttt{FFE1} karakteristiğine
 \emph{notify} abone olur ve gelen ASCII satırları parse eder.
-\Cref{tab:mesaj-cercevesi} bu hat üzerinde dolaşan mesajları özetler.
+Bölüm~\ref{tab:mesaj-cercevesi} bu hat üzerinde dolaşan mesajları özetler.
 
 \begin{table}[h!]
 \centering
@@ -333,7 +267,7 @@ savunulabilir bir adımdır. Android tarafındaki muadil bir uygulama,
 \texttt{Intent.ACTION\_CALL("tel:155")} ile aynı tek-dokunuş'u
 otomatik çağrıya dönüştürebilir \cite{android2024telephony}; bu hat
 gelecek çalışmalar başlığında değerlendirilmiştir
-(\Cref{sec:android-gelecek}).
+(Bölüm~\ref{sec:android-gelecek}).
 
 \section{Kullanıcı Kaydı, Kimlik Doğrulama ve Plaka Eşleşmesi}
 \label{sec:auth}
@@ -344,7 +278,7 @@ olduğunun kayıt altında tutulması beklenir. Bu amaçla bulut tarafına,
 tanıma servisi ile aynı süreçte çalışan küçük bir kimlik doğrulama
 katmanı eklenmiştir:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item \textbf{Veritabanı:} SQLite tek dosya
           (\texttt{/app/data/users.db}); \texttt{users} ve \texttt{tokens}
           olmak üzere iki tablo. Aynı disk hacmi InsightFace gömme veri
@@ -363,8 +297,8 @@ katmanı eklenmiştir:
           şoför hesabı tanımlanabilir, kullanıcı adı eşsizdir.
 \end{itemize}
 
-\Cref{tab:auth-endpoints} tanımlı endpoint'leri özetler; aksiyon
-diyagramı \Cref{fig:auth-akisi}'da verilmiştir.
+Bölüm~\ref{tab:auth-endpoints} tanımlı endpoint'leri özetler; aksiyon
+diyagramı Bölüm~\ref{fig:auth-akisi}'da verilmiştir.
 
 \begin{table}[h!]
 \centering
@@ -385,27 +319,7 @@ diyagramı \Cref{fig:auth-akisi}'da verilmiştir.
 
 \begin{figure}[h!]
 \centering
-\begin{tikzpicture}[
-    node distance=8mm and 14mm,
-    box/.style={draw=ink, thick, minimum width=28mm, minimum height=10mm,
-                align=center, font=\small\sffamily},
-    arr/.style={-{Latex[length=2mm]}, thick, ink, font=\scriptsize\ttfamily},
-]
-\node[box] (open) {Uygulama açılır};
-\node[box, right=of open] (boot) {Keychain'de\\token var mı?};
-\node[box, above right=4mm and 14mm of boot] (verify) {\texttt{/auth/me}\\ile doğrula};
-\node[box, below right=4mm and 14mm of boot] (login) {Login ekranı};
-\node[box, right=of verify] (home) {HomeView\\(TabView)};
-\node[box, right=of login] (reg) {Kayıt ekranı\\(otomatik login)};
-
-\draw[arr] (open) -- (boot);
-\draw[arr] (boot.north east) -- node[above]{evet} (verify.west);
-\draw[arr] (boot.south east) -- node[below]{hayır} (login.west);
-\draw[arr] (verify) -- node[above]{200} (home);
-\draw[arr] (verify.south) to[bend left=25] node[right]{401} (login.north);
-\draw[arr] (login.east) -- (reg.west);
-\draw[arr] (reg.north) to[bend right=20] node[above]{201} (home.south);
-\end{tikzpicture}
+\fbox{\parbox{0.85\linewidth}{\centering\vspace{4em}\textit{[Şekil yer tutucu --- TikZ figürü derlemede atlandı]}\vspace{4em}}}
 \caption{iPhone uygulamasının açılışında izlenen kimlik doğrulama akışı.
 Geçerli token bulunursa kullanıcı doğrudan ana ekrana; aksi halde Login/Register'a yönlenir.}
 \label{fig:auth-akisi}
@@ -424,7 +338,7 @@ iPhone tarafındaki uygulama, SwiftUI ve \texttt{@Observable} makro
 desteği ile yazılmış, üç sekmeli (TabView) bir kullanıcı arayüzünden
 oluşur:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item \textbf{Ana Sayfa (Dashboard):} Sürücüye selamlama, atanmış
           plaka, sistem bağlantı durumu özet kartı, son olaylar listesi.
     \item \textbf{Tarama (Scan):} BLE bağlantı rozeti, büyük renkli durum
@@ -447,7 +361,7 @@ açılışta tekrar oturum açması gerekir.
 Wi-Fi'nin yokluğunda veya sunucunun yanıt vermediği durumda sistem
 \textbf{güvenli moda} geçer:
 
-\begin{enumerate}[label=(\arabic*),itemsep=1pt]
+\begin{enumerate}
     \item ESP32-CAM, HTTP POST sırasında 10~s zaman aşımına ulaşırsa
           USART6'ya \texttt{ERR:no\_wifi} satırı gönderir.
     \item STM32 olay yöneticisi 15~s'lik scan timeout'una takılırsa
@@ -471,7 +385,7 @@ karşılar.
 Bu tezde, gelişme raporu ve ilk Plan~B tasarımına göre üç önemli sapma
 vardır:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item \textbf{Kamera platformu:} Plan~A'da STM32'nin DCMI çevre
           birimine bağlı stand-alone bir OV5640 modülü öngörülmüştü.
           Sergi takvimi içinde DVP/parallel arabirimli OV5640 modülü
@@ -482,7 +396,7 @@ vardır:
           yığınının aynı işlevi tek board üzerinde sağladığı doğrulanmış;
           HM-10 mimariden çıkarılmıştır. STM32 ile telefon arasındaki tüm
           mesajlar tek bir USART6 hattı üzerinden ESP32-CAM'e gönderilip
-          oradan BLE notify ile iletilir (\Cref{tab:mesaj-cercevesi}).
+          oradan BLE notify ile iletilir (Bölüm~\ref{tab:mesaj-cercevesi}).
     \item \textbf{Hedef telefon platformu:} Önceki taslakta hedef
           Android olarak tanımlanmış; ekibin elinde mevcut olan iPhone~16
           ile sergiye gidilebileceği için iOS hedef alınmıştır. Android'in

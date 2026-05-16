@@ -53,7 +53,7 @@ APB1 = 54~MHz, APB2 = 108~MHz, USART zaman tabanı APB2'den alınır ve
 
 \section{Güç ve Topraklama}
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item STM32 NUCLEO kartı USB üzerinden (ST-Link konektörü) beslenir.
     \item ESP32-CAM \textbf{ayrı bir USB kaynağından} (kendi dock'undan
           veya bağımsız bir USB şarjdan) beslenir. STM32 kartının 5~V
@@ -70,7 +70,7 @@ APB1 = 54~MHz, APB2 = 108~MHz, USART zaman tabanı APB2'den alınır ve
 
 \section{Bring-up Sırası}
 
-\Cref{tab:bringup} sergiye gitmeden önce takip edilecek bring-up sırasını
+Bölüm~\ref{tab:bringup} sergiye gitmeden önce takip edilecek bring-up sırasını
 özetler. Her satırın ``başarı kriteri'' sütunu sağlandıktan sonra bir
 sonraki satıra geçilir.
 
@@ -90,7 +90,7 @@ sonraki satıra geçilir.
 5 & STM32 \texttt{D0/D1/GND} pinlerini ESP32-CAM \texttt{IO13/IO14/GND} pinlerine bağla, iki kart farklı USB güçlerinden çalışsın & B1 USER $\rightarrow$ STM \texttt{CAPTURE} $\rightarrow$ ESP burst $\rightarrow$ STM \texttt{RESULT:...} parse\\
 6 & iPhone'da TaksiGuvenlik uygulamasını Xcode ile build et, çalıştır & İlk açılışta Login ekranı; kayıt sonrası \texttt{TaxiGuard}'a otomatik bağlantı\\
 7 & B1 USER bas, iPhone'da Scan sekmesini izle & Sırasıyla SCANNING $\rightarrow$ MATCH (veya NOMATCH) durum kartı, MATCH'te \texttt{tel://}<numara> dialer'ı açılır\\
-8 & Test seti ile FAR/FRR ölçümü yap (\Cref{ch:sonuclar}) & ROC eğrisi + EER raporu üretildi\\
+8 & Test seti ile FAR/FRR ölçümü yap (Bölüm~\ref{ch:sonuclar}) & ROC eğrisi + EER raporu üretildi\\
 \bottomrule
 \end{tabularx}
 \end{table}

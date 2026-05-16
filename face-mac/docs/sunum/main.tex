@@ -48,7 +48,7 @@
 % --- Başlık metadata -----------------------------------------------------
 \title[Sürücü Güvenliği]{Yüz Tanıma Tabanlı Sürücü Güvenlik ve\\Acil Durum Bildirim Sistemi}
 \subtitle{Driver Safety and Emergency Notification System Based on Facial Recognition}
-\author[G.\ Göçen]{Göktürk Göçen \\ \small Danışman: Prof.\ Dr.\ Aydoğan Savran}
+\author[E.\ Ağaoğlu]{Ekin Ağaoğlu \\ \small Danışman: Prof.\ Dr.\ Aydoğan Savran}
 \institute[Ege Ü.]{Ege Üniversitesi \\ Elektrik-Elektronik Mühendisliği Bölümü}
 \date{Lisans Bitirme Projesi · 2025--2026}
 
@@ -186,33 +186,7 @@
 
 \begin{frame}{Uçtan Uca Mimari}
     \begin{center}
-    \begin{tikzpicture}[
-        node distance=8mm and 14mm,
-        box/.style={draw=ink, thick, minimum width=26mm, minimum height=10mm,
-                    align=center, font=\scriptsize\sffamily},
-        cloud/.style={draw=ink, thick, minimum width=32mm, minimum height=10mm,
-                      align=center, font=\scriptsize\sffamily, fill=ink!5},
-        arr/.style={-{Latex[length=2mm]}, thick, ink},
-        arracc/.style={-{Latex[length=2mm]}, thick, accent},
-        arrsig/.style={-{Latex[length=2mm]}, thick, signal},
-        lab/.style={font=\tiny\ttfamily, ink},
-    ]
-    \node[box] (esp) {ESP32-CAM\\\tiny burst + Wi-Fi + BLE};
-    \node[box, below=of esp] (stm) {STM32 F767ZI\\\tiny olay yöneticisi};
-    \node[box, right=of esp] (wifi) {Wi-Fi};
-    \node[cloud, right=of wifi] (ec2) {AWS EC2\\\tiny Flask + InsightFace + Auth};
-    \node[box, below=of ec2] (phone) {iPhone\\\tiny SwiftUI · tel:// dialer};
-
-    \draw[arr] (esp.east) -- node[lab, above]{HTTP POST} (wifi.west);
-    \draw[arr] (wifi.east) -- (ec2.west);
-    \draw[arracc] (ec2.west) to[bend left=30] node[lab, below]{JSON} (wifi.east);
-    \draw[arr] (esp) -- node[lab, right]{USART6} (stm);
-    \draw[arr] (esp.south east) to[bend left=20]
-        node[lab, right]{BLE FFE0/FFE1} (phone.north);
-    \draw[arracc] (phone.north west) to[bend left=20]
-        node[lab, left]{/auth} (ec2.south west);
-    \draw[arrsig] (phone.south) -- ++(0,-6mm) node[lab, right]{tel:// 155};
-    \end{tikzpicture}
+    \fbox{\parbox{0.85\linewidth}{\centering\vspace{4em}\textit{[Şekil yer tutucu --- TikZ figürü derlemede atlandı]}\vspace{4em}}}
     \end{center}
 
     Üç bölge: Araç içi · Bulut tanıma + auth · Sürücü telefonu
@@ -348,27 +322,7 @@
 
 \begin{frame}{Kullanıcı Yönetimi Akışı}
     \begin{center}
-    \begin{tikzpicture}[
-        node distance=6mm and 12mm,
-        box/.style={draw=ink, thick, minimum width=24mm, minimum height=8mm,
-                    align=center, font=\scriptsize\sffamily},
-        arr/.style={-{Latex[length=2mm]}, thick, ink, font=\tiny\ttfamily},
-    ]
-    \node[box] (open) {Uygulama açılır};
-    \node[box, right=of open] (boot) {Keychain'de\\token var mı?};
-    \node[box, above right=2mm and 10mm of boot] (verify) {\texttt{/auth/me}};
-    \node[box, below right=2mm and 10mm of boot] (login) {Login};
-    \node[box, right=of verify] (home) {HomeView\\(TabView)};
-    \node[box, right=of login] (reg) {Register\\(otomatik login)};
-
-    \draw[arr] (open) -- (boot);
-    \draw[arr] (boot.north east) -- node[above]{evet} (verify.west);
-    \draw[arr] (boot.south east) -- node[below]{hayır} (login.west);
-    \draw[arr] (verify) -- node[above]{200} (home);
-    \draw[arr] (verify.south) to[bend left=25] node[right]{401} (login.north);
-    \draw[arr] (login.east) -- (reg.west);
-    \draw[arr] (reg.north) to[bend right=20] node[above]{201} (home.south);
-    \end{tikzpicture}
+    \fbox{\parbox{0.85\linewidth}{\centering\vspace{4em}\textit{[Şekil yer tutucu --- TikZ figürü derlemede atlandı]}\vspace{4em}}}
     \end{center}
 
     \vspace{0.2cm}
@@ -471,8 +425,8 @@
         \vspace{1.2cm}
         {\Huge \bfseries Teşekkürler}\\[1cm]
         {\Large Sorular?}\\[2cm]
-        \small Göktürk Göçen \\
-        qgokturk@gmail.com \\[6pt]
+        \small Ekin Ağaoğlu \\
+        ekin.agaoglu@example.com \\[6pt]  % TODO: gerçek e-posta
         Danışman: Prof.\ Dr.\ Aydoğan Savran
     \end{center}
 \end{frame}

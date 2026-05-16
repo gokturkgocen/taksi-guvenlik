@@ -11,7 +11,7 @@ Wi-Fi + BLE köprüsü, STM32 tabanlı olay yöneticisi ve iPhone üzerinde
 SwiftUI ile yazılmış sürücü uygulamasından oluşmaktadır. Tasarım, üç
 temel ilkeye sadık kalmıştır:
 
-\begin{enumerate}[label=(\arabic*),itemsep=2pt]
+\begin{enumerate}
     \item Sürücü etkileşiminin tek bir butona indirgenmesi,
     \item Görsel/işitsel geri bildirimle dikkat dağıtmayan bir kullanıcı
           deneyimi,
@@ -29,7 +29,7 @@ flash--flaş döngülerinin minimuma indirilmesini sağlamıştır.
 
 Sergi öncesi yapılan tezgah testlerinde:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item EC2 sunucusunun health/check, burst smoke testi ve \texttt{/auth/...}
           mutluluk yolu + hata senaryoları geçmiştir;
     \item ESP32-CAM Wi-Fi STA modunda hotspot'a bağlanıp sunucuya 10
@@ -46,14 +46,14 @@ Sergi öncesi yapılan tezgah testlerinde:
 
 Sergi haftası içinde tamamlanacak adımlar: küçültülmüş bir test seti
 üzerinde FAR/FRR ölçümlerinin alınması, sonuçların tezin
-\cref{ch:sonuclar}'üne işlenmesi ve demo öncesi \texttt{emergencyNumber}
+\ref{ch:sonuclar}'üne işlenmesi ve demo öncesi \texttt{emergencyNumber}
 değerinin 155'e geri çekilmesi.
 
 \section{Akademik ve Pratik Katkılar}
 
 Çalışmanın özgün katkıları şu şekilde özetlenebilir:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item Açık kaynak yüz tanıma motorunun (InsightFace), küçük ölçekli
           gömülü donanım (ESP32-CAM + STM32) ile entegre edilerek bir
           taksi senaryosuna uyarlanması;
@@ -75,7 +75,7 @@ değerinin 155'e geri çekilmesi.
 Mevcut sürüm (Faz 1) sunucusu HTTP üzerinden çalışmakta; sergi/test
 ortamı için yeterlidir ancak üretim için yetersizdir. Faz 2'ye geçiş için:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item EC2 önüne Caddy veya nginx reverse proxy konulması; Let's Encrypt
           ile otomatik sertifika alınması,
     \item ESP32-CAM \texttt{config.h}'da \texttt{USE\_TLS=1} ve ISRG Root~X1
@@ -96,9 +96,9 @@ işidir.
 \subsection{Edge Inference (Kısmi Yerel Tanıma)}
 
 Mevcut tasarım, Wi-Fi gerektirir. Wi-Fi yokken sistem güvenli moda geçer
-(\cref{sec:safe-mode}) ancak tanıma çalışmaz. Hibrit bir tasarımda:
+(\ref{sec:safe-mode}) ancak tanıma çalışmaz. Hibrit bir tasarımda:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item ESP32-S3 veya benzeri bir SoC üzerinde quantized ArcFace-MobileNet
           ile kabaca bir ön-eleme yapılabilir;
     \item Yalnızca yüksek-belirsizlik durumlarında bulut sorgulanır.
@@ -140,7 +140,7 @@ arka koltukta sessizce gerçekleştirilebilir.
 
 Sistemin sahaya çıkarılması için:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item KVKK kapsamında ``açık rıza'' veya ``kanunlarda öngörülmüş
           hâl'' altında çalışacak hukuki çerçevenin netleştirilmesi,
     \item Aranan kişiler veri tabanına girişin yetkili idari/kolluk

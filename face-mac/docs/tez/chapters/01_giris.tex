@@ -25,7 +25,7 @@ Taksi sürücüleri, yolcu kaynaklı tehdit veya saldırı vakalarına karşı
 açık bir çalışma ortamına sahiptir. Bu riskleri azaltmak için iki temel
 ihtiyaç tanımlanmıştır:
 
-\begin{enumerate}[label=(\roman*),itemsep=2pt]
+\begin{enumerate}
     \item Yolcu kimliğinin caydırıcılık oluşturacak biçimde
           doğrulanması ve kayıt altına alınması,
     \item Bir olay durumunda hızlı müdahaleyi sağlayacak, sürücünün
@@ -43,7 +43,7 @@ Tezin amacı, yukarıda tanımlanan iki ihtiyacı karşılayan bir prototip
 sistem geliştirmek ve uçtan uca işlevselliğini deneysel olarak
 göstermektir. Proje kapsamı aşağıdaki sınırlarla belirlenmiştir:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item Tek aracı kapsayan, sergi ve laboratuvar düzeneğinde test
           edilebilen prototip seviyesinde bir sistem geliştirilecektir.
     \item Kamera ve yüz tanıma; gerçek bir taksi içi montaj senaryosu
@@ -65,37 +65,37 @@ Gelişme raporunda \cite{ekin_gelisme_2026} tanımlanan hedef metriklerden
 yola çıkılarak, bitirme tezi kapsamında aşağıdaki başarı ölçütleri
 belirlenmiştir:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item \textbf{Uçtan uca tanıma gecikmesi:} ESP32-CAM TARA komutu
           alındıktan, STM32'ye sonucun ulaştığı ana kadar geçen süre
           $\leq$~7~s (10 karelik öbek için, Wi-Fi $\geq$~10\,Mbps yukarı
           hızda).
     \item \textbf{Yüz tanıma doğruluğu (ideal koşullarda):}
           Eşit Hata Oranı (EER) $\leq$~\%5; FAR\,$\leq$\,\%1 noktasındaki
-          FRR $\leq$~\%10. Ölçüm \cref{sec:olcum-plani}'ndeki test
+          FRR $\leq$~\%10. Ölçüm \ref{sec:olcum-plani}'ndeki test
           protokolüne göre yapılacaktır.
     \item \textbf{Aydınlatma ve mesafe aralığı:} 100--600~lx aydınlatma ve
           30--120~cm yolcu--kamera mesafesi aralığında kararlı çalışma.
     \item \textbf{Acil çağrı tetikleme süresi:} STM32 MATCH kararından
           telefonda 155 dialer'ının açılmasına kadar $\leq$~3~s.
     \item \textbf{Ek donanım maliyeti:} Mevcut STM32 kartı dışında
-          eklenen bileşenler için $\leq$~500~\textcent\,(TL).
+          eklenen bileşenler için $\leq$~500~TL.
 \end{itemize}
 
 \paragraph{Önerilen değişiklik.} Gelişme raporundaki ``uçtan uca
 $<$~200~ms'' hedefi, tek karelik bir API sorgusunu varsayıyordu. Çoklu
 kare öbek (\emph{burst}) tasarımına geçildiği için bu hedef
 \emph{karelerin tamamı için} en fazla 7~s olarak revize edilmiştir
-(\cref{sec:degisiklikler}). Yolcu binişi başına yalnızca bir tarama
+(\ref{sec:degisiklikler}). Yolcu binişi başına yalnızca bir tarama
 yapıldığından, kullanıcı deneyimi açısından bu süre uygundur.
 
 \section{Tezin Yapısı}
 
-\Cref{ch:literatur}'de yüz tanıma yöntemleri ve gömülü sistem tabanlı
-uygulamalar literatürü özetlenir. \Cref{ch:yontem} sistemin tasarım
-ilkelerini ve mimari kararlarını sunar. \Cref{ch:gerceklestirme} ise
+Bölüm~\ref{ch:literatur}'de yüz tanıma yöntemleri ve gömülü sistem tabanlı
+uygulamalar literatürü özetlenir. Bölüm~\ref{ch:yontem} sistemin tasarım
+ilkelerini ve mimari kararlarını sunar. Bölüm~\ref{ch:gerceklestirme} ise
 gerçekleme aşamasında alınan kararları, kullanılan donanım ve yazılım
 bileşenlerini, protokol tanımlarını ve karşılaşılan teknik sorunları
-ayrıntılı olarak açıklar. \Cref{ch:sonuclar}, gerçekleştirilen
-ölçümleri ve elde edilen sonuçları tartışır. \Cref{ch:sonuc-oneriler}
+ayrıntılı olarak açıklar. Bölüm~\ref{ch:sonuclar}, gerçekleştirilen
+ölçümleri ve elde edilen sonuçları tartışır. Bölüm~\ref{ch:sonuc-oneriler}
 ise çıkarımları toparlar ve gelecek çalışma önerilerini paylaşır.

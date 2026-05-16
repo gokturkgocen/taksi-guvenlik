@@ -8,7 +8,7 @@ Gelişme raporundaki 20--30 kişilik ölçüm hedefi, sergi takvimi içinde
 gerçekleştirilemediği için pratik düzeyde \textbf{küçültülmüş bir test
 seti} kullanılmıştır. Test seti üç bileşenden oluşur:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item \textbf{Gallery (kayıtlı):} Proje ekibi (Göktürk Göçen, Ekin
           Ağaoğlu) ve gönüllü olarak katılan toplam 5--8 kişi. Her bir
           birey için kayıt fotoğrafı düzgün aydınlatma ve frontal poz
@@ -23,7 +23,7 @@ Her probe \texttt{far\_frr.py} aracı ile 10 karelik bir burst olarak
 sunucuya gönderilmiş; sunucu kalite filtresi, centroid hesabı ve kosinüs
 benzerliği üretmiştir. Test üç farklı koşul grubunda tekrarlanmıştır:
 
-\begin{enumerate}[label=(\arabic*),itemsep=2pt]
+\begin{enumerate}
     \item \textbf{Aydınlatma}: 100~lx (alacakaranlık), 300~lx (ofis), 600~lx (gün ışığı).
     \item \textbf{Mesafe}: 30--60~cm (yakın), 60--90~cm (orta), 90--120~cm (uzak).
     \item \textbf{Pasif canlılık}: gerçek yüz vs.\ ekran tekrar (replay) testleri.
@@ -92,7 +92,7 @@ Ekran tekrarı (telefonda gösterilen foto) & -- & --\\
 \label{sec:perf}
 
 Sistemin uçtan uca gecikmesi, \texttt{far\_frr.py} aracının her burst için
-ölçtüğü değerlerden hesaplanmıştır. \Cref{tab:results-latency} kategori
+ölçtüğü değerlerden hesaplanmıştır. Bölüm~\ref{tab:results-latency} kategori
 bazında ortalama, p50, p95 ve maksimum gecikme değerlerini gösterir.
 
 \begin{table}[h!]
@@ -114,7 +114,7 @@ Kalite yetersiz (insufficient frames)   & -- & -- & -- & -- & --\\
 
 Gecikme bileşenlerinin yaklaşık dağılımı (varsayılan koşulda, hedef):
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item ESP32-CAM görüntü yakalama (10 kare $\times$ 200~ms): $\sim$2.0~s
     \item HTTP POST (Wi-Fi $\geq$~10\,Mbps, 10 kare): $\sim$1.5~s
     \item Sunucu InsightFace çıkarımı (10 kare, CPU): $\sim$2.0~s
@@ -125,12 +125,12 @@ Gecikme bileşenlerinin yaklaşık dağılımı (varsayılan koşulda, hedef):
 
 \section{Eşik Optimizasyonu}
 
-\Cref{ch:gerceklestirme}'de tanımlanan \texttt{far\_frr.py} aracı,
+Bölüm~\ref{ch:gerceklestirme}'de tanımlanan \texttt{far\_frr.py} aracı,
 $\tau \in [0, 1]$ üzerinde tam süpürme yapar. EER ve $\mathrm{FAR} \leq 0.01$
 kısıtı altındaki operating point, ölçüm tamamlandıktan sonra
 aşağıdaki gibi raporlanacaktır:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item \textbf{EER eşiği:} $\tau^\star_{EER}$ = -- (FAR = FRR = --)
     \item \textbf{Operatif eşik} ($\mathrm{FAR} \leq 0.01$): $\tau^\star_{op}$ = -- (FRR = --)
 \end{itemize}
@@ -151,7 +151,7 @@ kalite-geçen kare sayısını ve gecikmeyi izlemekte kullanılmıştır.
 üzerinden ESP32-CAM'e \texttt{CAPTURE/SCANNING/MATCH/\ldots} satırları
 doğrulanmıştır. State machine modülü host-side bir test harness'ında
 12 senaryo için ayrıca deterministik olarak doğrulanmıştır
-(\Cref{tab:host-tests}).
+(Bölüm~\ref{tab:host-tests}).
 
 \paragraph{ESP32-CAM BLE çevresel.} ESP32-CAM cihazı, BLE peripheral
 olarak \texttt{TaxiGuard} adıyla yayın yapmakta; \texttt{FFE0} servis
@@ -171,7 +171,7 @@ otomatik olarak açılmaktadır.
 Sistem mimarisinde alınan üç temel kararın geriye dönüp bakıldığında
 hangi pratik faydaları sağladığı şu şekilde değerlendirilebilir:
 
-\begin{itemize}[itemsep=3pt]
+\begin{itemize}
     \item \textbf{Kendi sunucumuz vs.\ kapalı kutu API:} İlk bakışta
           AWS Rekognition gibi kapalı kutu bir servis hızlı bir geliştirme
           vaat ediyor olsa da, eşik değerinin kontrolü, model değişiklik
@@ -205,7 +205,7 @@ hangi pratik faydaları sağladığı şu şekilde değerlendirilebilir:
 
 Kısıtlar ve limitler de açıkça raporlanmalıdır:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item Ölçüm seti 5--8 kişilik bir gruba indirgendiği için FAR/FRR
           değerleri istatistiksel olarak sınırlı kapsamlıdır. Sunulan
           metrikler, sistemin \emph{ideal koşullarda yapılabilir} olduğunu

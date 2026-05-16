@@ -4,7 +4,7 @@
 Bu ek, sistemde tanımlanan tüm UART, BLE ve HTTP mesaj çerçevelerini
 tek yerde listeler. Mesajlar üç hat üzerinde dolaşmaktadır:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item \textbf{USART6} (115200~bps, 8N1): STM32 $\leftrightarrow$ ESP32-CAM,
           Arduino başlık silkscreen'inde \texttt{D0/D1} olarak işaretli
           \texttt{PG9}/\texttt{PG14} pinleri.
@@ -55,7 +55,7 @@ ESP32-CAM bir BLE çevresel (\emph{peripheral}) hizmeti yayınlar; iPhone
 uygulaması CoreBluetooth ile bağlanarak \texttt{FFE1} karakteristiğinin
 notify aboneliğini açar.
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item \textbf{Cihaz adı:} \texttt{TaxiGuard}
     \item \textbf{Servis UUID:} \texttt{0000ffe0-0000-1000-8000-00805f9b34fb}
     \item \textbf{Karakteristik UUID:} \texttt{0000ffe1-0000-1000-8000-00805f9b34fb}

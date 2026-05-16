@@ -1,14 +1,14 @@
 \chapter{Gerçekleştirme}
 \label{ch:gerceklestirme}
 
-Bu bölümde, \cref{ch:yontem}'de tanımlanan tasarımın somut donanım ve
+Bu bölümde, \ref{ch:yontem}'de tanımlanan tasarımın somut donanım ve
 yazılım bileşenlerine indirgenişi anlatılmaktadır. Her alt sistem için
 \emph{ne kullanıldı, neden kullanıldı, nasıl bağlandı, hangi
 parametrelerle çalıştığı} sırasıyla verilmiştir.
 
 \section{Donanım Listesi}
 
-\Cref{tab:bom} prototipte kullanılan tüm donanım bileşenlerini ve
+Bölüm~\ref{tab:bom} prototipte kullanılan tüm donanım bileşenlerini ve
 yaklaşık birim maliyetlerini özetler. Toplam ek donanım maliyeti,
 hedeflenen 500~TL bütçesi içinde kalmıştır. İlk Plan~B'de yer alan
 HM-10 BLE modülü, ESP32-CAM'in entegre Bluetooth yığını tarafından
@@ -67,7 +67,7 @@ modülü ile üretilmektedir.
 Tanıma servisinin kritik endpoint'i \texttt{POST /search}'tür. İstek
 gövdesi JPEG bayt dizisi; başlıkları:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item \texttt{X-Session-Id}: Oturum kimliği (UUID), tüm burst boyunca aynı.
     \item \texttt{X-Frame-Index}: 1\textendash N arası kare sırası.
     \item \texttt{X-Frame-Total}: Burst içindeki toplam kare sayısı (\=10).
@@ -92,10 +92,10 @@ yanıt:
 \end{lstlisting}
 
 Kimlik doğrulama katmanı için \texttt{/auth} ön~ekiyle dört endpoint
-tanımlanmıştır (\Cref{tab:auth-endpoints}). Bu endpoint'ler yalnızca
+tanımlanmıştır (Bölüm~\ref{tab:auth-endpoints}). Bu endpoint'ler yalnızca
 iPhone uygulamasıyla konuşur ve \texttt{X-Shared-Secret} başlığını
 \emph{aramaz}; bunun yerine \texttt{Authorization: Bearer <token>}
-başlığını kontrol eder. \Cref{lst:auth-register} örnek bir kayıt
+başlığını kontrol eder. Bölüm~\ref{lst:auth-register} örnek bir kayıt
 sözleşmesi gösterir.
 
 \begin{lstlisting}[language=none, caption={Yeni kullanıcı kaydı (\texttt{POST /auth/register}).}, label=lst:auth-register]
@@ -113,12 +113,12 @@ Response 201:
 \subsection{SQLite Şeması}
 
 Kullanıcı veritabanı tek bir SQLite dosyasında, gömme veri tabanıyla aynı
-disk hacmi üzerinde tutulur (\Cref{lst:sqlite-schema}). Dosya
+disk hacmi üzerinde tutulur (Bölüm~\ref{lst:sqlite-schema}). Dosya
 \texttt{/app/data/users.db} yoluna yazılır; \texttt{embeddings.pkl} ile
 aynı klasördedir, böylece tek bir kalıcı disk yedeği iki katmanın da
 durumunu kapsar.
 
-\begin{lstlisting}[language=SQL, caption={Kullanıcı veritabanı şeması.}, label=lst:sqlite-schema]
+\begin{lstlisting}[language=none, caption={Kullanıcı veritabanı şeması.}, label=lst:sqlite-schema]
 CREATE TABLE IF NOT EXISTS users (
     username       TEXT PRIMARY KEY,
     password_hash  TEXT NOT NULL,
@@ -143,7 +143,7 @@ süre sınırlaması yoktur, kullanıcı çıkış yaptığında ilgili satır
 
 Sergi öncesi yapılan üç hafif sertleştirme:
 
-\begin{enumerate}[itemsep=2pt]
+\begin{enumerate}
     \item \textbf{Opsiyonel paylaşılan anahtar:} \texttt{SHARED\_SECRET}
           ortam değişkeni atandığında \texttt{/search} endpoint'i
           \texttt{X-Shared-Secret} başlığını arar; \texttt{/health},
@@ -182,7 +182,7 @@ gider: USART6 RX, USART6 TX ve GND.
 Firmware PlatformIO + Arduino-ESP32 çekirdeği üzerinde C++ olarak
 yazılmıştır. Ana döngü üç görevi yürütür:
 
-\begin{enumerate}[label=(\arabic*),itemsep=1pt]
+\begin{enumerate}
     \item STM32'den USART üzerinden gelen \texttt{CAPTURE\textbackslash n}
           komutunu dinlemek;
     \item Komut geldiğinde 5~FPS hızında 10 JPEG kare yakalamak, her
@@ -196,7 +196,7 @@ yazılmıştır. Ana döngü üç görevi yürütür:
 Burst boyunca her POST aynı oturum kimliğini (\texttt{X-Session-Id})
 taşır. Son kare üzerindeki yanıt JSON olarak parse edildikten sonra:
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item Eşleşme varsa: STM32'ye \texttt{RESULT:1;<name>;<sim>\textbackslash n},
     \item Eşleşme yoksa: \texttt{RESULT:0;;<sim>\textbackslash n},
     \item Hata durumunda: \texttt{ERR:<tag>\textbackslash n} (örnek tag:
@@ -208,9 +208,9 @@ taşır. Son kare üzerindeki yanıt JSON olarak parse edildikten sonra:
 ESP-CAM, Arduino BLE API üzerinden tek bir çevresel hizmet yayınlar:
 servis UUID \texttt{0xFFE0}, karakteristik UUID \texttt{0xFFE1}; özellikler
 NOTIFY + READ + WRITE. Modülün yayın adı \texttt{TaxiGuard}'dır.
-\Cref{lst:esp-ble-setup} ilgili bring-up çağrılarını özetler.
+Bölüm~\ref{lst:esp-ble-setup} ilgili bring-up çağrılarını özetler.
 
-\begin{lstlisting}[language=C++, caption={ESP32-CAM tarafında BLE çevresel hizmetin kurulumu (özet).}, label=lst:esp-ble-setup]
+\begin{lstlisting}[language=none, caption={ESP32-CAM tarafında BLE çevresel hizmetin kurulumu (özet).}, label=lst:esp-ble-setup]
 BLEDevice::init("TaxiGuard");
 BLEDevice::setMTU(247);                  // varsayilan 23 mesajlari 20B'da kesiyor
 BLEServer*   server   = BLEDevice::createServer();
@@ -258,9 +258,9 @@ geçilmiştir. Dahili 16~MHz osilatör PLL girişine verilir, çıkışta
 hemen sonra çağrılmıştır.
 
 CubeMX projesi NUCLEO-F767ZI üzerinde aşağıdaki çevre birimleri ile
-yapılandırılmıştır (ayrıntılar için \Cref{app:pin-plani}'ye bakınız):
+yapılandırılmıştır (ayrıntılar için Bölüm~\ref{app:pin-plani}'ye bakınız):
 
-\begin{itemize}[itemsep=1pt]
+\begin{itemize}
     \item \textbf{USART6}, 115200~bps 8N1, \texttt{PG9 (D0, RX)} ve
           \texttt{PG14 (D1, TX)}: ESP32-CAM ile haberleşme. Arduino
           başlık silkscreen'i sayesinde kablo bağlama hatası
@@ -291,7 +291,7 @@ edilmiş ve PC üzerinde birim testleriyle doğrulanmıştır. Modül, HAL'a
 doğrudan bağımlı değildir; tüm donanım etkileşimleri bir callback
 vtable üzerinden gerçekleşir:
 
-\begin{lstlisting}[language=C, caption={State machine referans modülünün callback vtable'ı.}, label=lst:cb]
+\begin{lstlisting}[language=none, caption={State machine referans modülünün callback vtable'ı.}, label=lst:cb]
 typedef struct {
     void     (*set_led)(sm_led_t led, bool on);
     void     (*set_buzzer)(bool on);
@@ -302,7 +302,7 @@ typedef struct {
 
 Bu soyutlama sayesinde modülün davranışı donanım olmadan
 gcc/clang ile derlenen bir host-side test koşumunda deterministik olarak
-doğrulanmıştır. \Cref{tab:host-tests} kapsanan 12 senaryoyu özetler.
+doğrulanmıştır. Bölüm~\ref{tab:host-tests} kapsanan 12 senaryoyu özetler.
 
 \paragraph{(ii) Embedded gerçekleme.}
 Tasarım doğrulandıktan sonra, \texttt{main.c} dosyasında aynı durum
@@ -347,9 +347,9 @@ oversized name             & 32 karakterden uzun isimde taşma yok\\
 \subsection{Embedded Uygulama --- main.c}
 
 \texttt{main.c} dosyasında durum makinesi mantığı USER CODE bölgelerine
-inline yazılmıştır. \Cref{lst:adapter} temel parçaları gösterir.
+inline yazılmıştır. Bölüm~\ref{lst:adapter} temel parçaları gösterir.
 
-\begin{lstlisting}[language=C, caption={CubeIDE main.c içerisindeki durum makinesi gerçeklemesi (özet).}, label=lst:adapter]
+\begin{lstlisting}[language=none, caption={CubeIDE main.c içerisindeki durum makinesi gerçeklemesi (özet).}, label=lst:adapter]
 typedef enum {
     STATE_IDLE = 0, STATE_SCANNING, STATE_MATCH,
     STATE_NOMATCH,  STATE_PANIC,    STATE_NETERR,
@@ -392,7 +392,7 @@ Uygulama Swift 5.9 ve SwiftUI ile yazılmış, hedef iOS sürümü 17.0'dır.
 Onüç dosyalık düz bir klasör yapısında düzenlenmiş; ana sorumluluk
 ayrımı şu şekildedir:
 
-\begin{itemize}[itemsep=2pt]
+\begin{itemize}
     \item \textbf{\texttt{AuthManager}}: \texttt{@MainActor} +
           \texttt{@Observable} bir sınıf. URLSession ile \texttt{/auth/...}
           endpoint'lerini çağırır; başarılı oturum bilgilerini
@@ -423,13 +423,13 @@ MATCH veya PANIC satırı geldiğinde \texttt{BLEManager}, iOS'un
 çağrısıyla açar. iOS, üçüncü taraf uygulamaların kullanıcı dokunmadan
 tam-otomatik arama başlatmasına izin vermez \cite{apple_tel_url}; bu
 durum tezde \emph{yanlış pozitif arama koruması} olarak savunulmuştur
-(\cref{sec:iphone-app}). Test ortamında \texttt{emergencyNumber}
+(\ref{sec:iphone-app}). Test ortamında \texttt{emergencyNumber}
 sabiti geçici olarak ekibe ait bir cep telefonuna yönlendirilmiş;
 demo öncesi 155 olarak güncellenecektir.
 
 \subsection{İzinler ve Sandbox Davranışı}
 
-\Cref{tab:ios-izinler} uygulamanın \texttt{Info.plist}'inde tanımlı
+Bölüm~\ref{tab:ios-izinler} uygulamanın \texttt{Info.plist}'inde tanımlı
 izinleri ve gerekçelerini özetler.
 
 \begin{table}[h!]
@@ -461,7 +461,7 @@ indirilmiştir.
 \section{Ölçüm Harness'i: \texttt{far\_frr.py}}
 \label{sec:harness}
 
-Tez \cref{ch:sonuclar} ölçümlerinin tekrarlanabilir biçimde
+Tez \ref{ch:sonuclar} ölçümlerinin tekrarlanabilir biçimde
 yapılabilmesi için \texttt{eval/far\_frr.py} adlı bir Python aracı
 geliştirilmiştir. Araç bir veri seti klasörünü (\texttt{dataset/<isim>/<foto>.jpg})
 tarar, her fotoğrafı 10 karelik bir burst olarak \texttt{/search}
@@ -472,7 +472,7 @@ Rate (EER) eşiğini ve istenen maksimum FAR altındaki en iyi operating
 point'i raporlar. Matplotlib mevcutsa bir FAR--FRR grafiği de
 oluşturur.
 
-\Cref{tab:harness-cikti} aracın ürettiği çıktı dosyalarını özetler.
+Bölüm~\ref{tab:harness-cikti} aracın ürettiği çıktı dosyalarını özetler.
 
 \begin{table}[h!]
 \centering

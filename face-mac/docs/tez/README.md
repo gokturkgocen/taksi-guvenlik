@@ -1,6 +1,6 @@
 # Bitirme Tezi — LaTeX Kaynak
 
-Bu klasör, Göktürk Göçen'in Lisans Bitirme Tezi LaTeX kaynaklarını içerir.
+Bu klasör, Ekin Ağaoğlu'nun Lisans Bitirme Tezi LaTeX kaynaklarını içerir.
 Şablon gelişme raporu (`Ekin_Ag_aog_lu_Gelis_imRaporu.pdf`) ile aynı stilde
 tutulmuştur: `report` class, `babel turkish`, Computer Modern.
 
